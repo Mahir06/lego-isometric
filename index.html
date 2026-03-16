@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEGO Builder - Isometric</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesk:opsz,wght@12..96,200..800&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="landing-screen">
+        <div class="landing-content">
+            <h1>LEGO Online</h1>
+            <p>Build together in real-time!</p>
+            
+            <div class="room-actions">
+                <input type="text" id="room-code-input" class="room-input" placeholder="ENTER ROOM CODE" maxlength="6">
+                <button id="join-room-btn" class="primary-btn">JOIN ROOM</button>
+                <button id="create-room-btn" class="secondary-btn">Create New Room</button>
+            </div>
+
+            <div class="gallery-title">Choose Game Mode</div>
+            <div class="gallery">
+                <div class="gallery-item active" data-mode="free-build">
+                    <div style="font-size: 2rem;">🏗️</div>
+                    <span>Free Build</span>
+                </div>
+                <div class="gallery-item disabled" title="Coming Soon">
+                    <div style="font-size: 2rem;">🏁</div>
+                    <span>Race</span>
+                </div>
+                <div class="gallery-item disabled" title="Coming Soon">
+                    <div style="font-size: 2rem;">🏰</div>
+                    <span>Siege</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-container" class="hidden">
+        <header>
+            <h1>LEGO Builder</h1>
+            <div class="top-controls">
+                <button id="undo-btn" title="Undo (Ctrl+Z)">⟲</button>
+                <button id="camera-btn" title="Take Screenshot">📸</button>
+                <button id="export-btn" title="Export Area">📤</button>
+                <button id="import-btn" title="Import Model">📥</button>
+                <button id="clear-btn" title="Clear All">🗑️</button>
+            </div>
+        </header>
+
+        <aside id="sidebar">
+            <div class="section" id="brick-selector">
+                <!-- JavaScript will populate categories and items here -->
+            </div>
+            <div class="section" id="color-selector">
+                <!-- JavaScript will populate items here -->
+            </div>
+            <div class="section instructions">
+                <p><strong>Controls</strong></p>
+                <ul>
+                    <li>Click: Place</li>
+                    <li>R: Rotate Block</li>
+                    <li>Right Click: Remove</li>
+                    <li>Rotate View: Right Click + Drag</li>
+                    <li>Zoom: Scroll</li>
+                    <li>Shift + Drag: Select Area</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main id="game-canvas-container">
+            <canvas id="game-canvas"></canvas>
+            <div id="floating-export-container" class="hidden">
+                <button id="floating-export-btn" class="primary-btn">Download Selection (.json)</button>
+                <button id="cancel-selection-btn" class="secondary-btn">Cancel</button>
+            </div>
+        </main>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>

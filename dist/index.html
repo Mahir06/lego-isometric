@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEGO Builder - Isometric</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-DRtubI4C.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DU5GLBYY.css">
+</head>
+<body>
+    <div id="ui-container">
+        <header>
+            <h1>LEGO Builder</h1>
+            <div class="controls-top">
+                <button id="undo-btn" title="Undo">↶</button>
+                <button id="clear-btn" title="Clear All">🗑</button>
+            </div>
+        </header>
+
+        <aside id="sidebar">
+            <div class="section" id="brick-selector">
+                <!-- JavaScript will populate categories and items here -->
+            </div>
+            <div class="section" id="color-selector">
+                <!-- JavaScript will populate items here -->
+            </div>
+            <div class="section instructions">
+                <p><strong>Controls</strong></p>
+                <ul>
+                    <li>Click: Place</li>
+                    <li>R: Rotate Block</li>
+                    <li>Right Click: Remove</li>
+                    <li>Rotate View: Right Click + Drag</li>
+                    <li>Zoom: Scroll</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main id="game-canvas-container">
+            <canvas id="game-canvas"></canvas>
+        </main>
+    </div>
+</body>
+</html>
