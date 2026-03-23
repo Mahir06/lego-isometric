@@ -7,67 +7,93 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesk:opsz,wght@12..96,200..800&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Grape+Nuts&family=Bricolage+Grotesk:opsz,wght@12..96,200..800&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- STEP 1: Name + Join/Create -->
     <div id="landing-screen">
-        <div class="landing-content">
+        <div class="landing-content" id="landing-step-1">
             <h1>LEGO Online</h1>
             <p>Build together in real-time!</p>
-            
             <div class="room-actions">
-                <input type="text" id="room-code-input" class="room-input" placeholder="ENTER ROOM CODE" maxlength="6">
+                <input type="text" id="player-name-input" class="room-input" placeholder="YOUR NAME" maxlength="20">
+                <input type="text" id="room-code-input" class="room-input" placeholder="ROOM CODE (to join a room)" maxlength="6">
                 <button id="join-room-btn" class="primary-btn">JOIN ROOM</button>
-                <button id="create-room-btn" class="secondary-btn">Create New Room</button>
+                <button id="create-room-btn" class="primary-btn secondary-style">✦ Create New Room</button>
             </div>
+        </div>
 
-            <div class="gallery-title">Choose Game Mode</div>
+        <!-- STEP 2: Game mode selection (shown after Create Room) -->
+        <div class="landing-content hidden" id="landing-step-2">
+            <h1>Choose Mode</h1>
+            <p>What do you want to build today?</p>
             <div class="gallery">
-                <div class="gallery-item active" data-mode="free-build">
-                    <div style="font-size: 2rem;">🏗️</div>
+                <div class="gallery-item active" id="mode-free-build">
+                    <div class="gallery-icon">🏗️</div>
                     <span>Free Build</span>
+                    <small>Build anything!</small>
                 </div>
                 <div class="gallery-item disabled" title="Coming Soon">
-                    <div style="font-size: 2rem;">🏁</div>
+                    <div class="gallery-icon">🏁</div>
                     <span>Race</span>
+                    <small>Coming Soon</small>
                 </div>
                 <div class="gallery-item disabled" title="Coming Soon">
-                    <div style="font-size: 2rem;">🏰</div>
+                    <div class="gallery-icon">🏰</div>
                     <span>Siege</span>
+                    <small>Coming Soon</small>
+                </div>
+                <div class="gallery-item disabled" title="Coming Soon">
+                    <div class="gallery-icon">🌉</div>
+                    <span>Bridge</span>
+                    <small>Coming Soon</small>
                 </div>
             </div>
+            <button id="start-game-btn" class="primary-btn" style="margin-top: 28px; width: 100%;">Start Building →</button>
         </div>
     </div>
 
+    <!-- MAIN GAME UI -->
     <div id="ui-container" class="hidden">
         <header>
             <div class="header-left">
-                <h1>LEGO Builder</h1>
+                <button id="sidebar-toggle-btn" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
+                <h1 class="logo-text">LEGO</h1>
                 <div id="room-display" class="room-badge">
                     Room: <span id="room-code-display">------</span>
                 </div>
             </div>
             <div class="top-controls">
-                <button id="undo-btn" title="Undo (Ctrl+Z)">⟲</button>
-                <button id="camera-btn" title="Take Screenshot">📸</button>
-                <button id="export-btn" title="Export Area">📤</button>
-                <button id="import-btn" title="Import Model">📥</button>
-                <button id="clear-btn" title="Clear All">🗑️</button>
+                <button id="undo-btn" class="tool-btn" title="Undo">
+                    <span class="tool-icon">⟲</span>
+                    <span class="tool-label">Undo</span>
+                </button>
+                <button id="camera-btn" class="tool-btn" title="Screenshot">
+                    <span class="tool-icon">📸</span>
+                    <span class="tool-label">Photo</span>
+                </button>
+                <button id="export-btn" class="tool-btn" title="Export Area">
+                    <span class="tool-icon">📤</span>
+                    <span class="tool-label">Export</span>
+                </button>
+                <button id="import-btn" class="tool-btn" title="Import Model">
+                    <span class="tool-icon">📥</span>
+                    <span class="tool-label">Import</span>
+                </button>
+                <button id="clear-btn" class="tool-btn danger" title="Clear All">
+                    <span class="tool-icon">🗑️</span>
+                    <span class="tool-label">Clear</span>
+                </button>
             </div>
         </header>
 
+        <!-- LEFT: Bricks + Colors sidebar -->
         <aside id="sidebar">
             <div class="section" id="brick-selector">
-                <!-- JavaScript will populate categories and items here -->
-            </div>
-            <div class="section">
-                <h2>Players</h2>
-                <div id="player-list">
-                    <!-- JavaScript will populate player items here -->
-                </div>
+                <!-- JS populates categories and items -->
             </div>
             <div class="section" id="color-selector">
-                <!-- JavaScript will populate items here -->
+                <!-- JS populates items -->
             </div>
             <div class="section instructions">
                 <p><strong>Controls</strong></p>
@@ -75,13 +101,14 @@
                     <li>Click: Place</li>
                     <li>R: Rotate Block</li>
                     <li>Right Click: Remove</li>
-                    <li>Rotate View: Right Click + Drag</li>
-                    <li>Zoom: Scroll</li>
-                    <li>Shift + Drag: Select Area</li>
+                    <li>Right Drag: Rotate view</li>
+                    <li>Scroll: Zoom</li>
+                    <li>Shift+Drag: Select area</li>
                 </ul>
             </div>
         </aside>
 
+        <!-- CENTER: Canvas -->
         <main id="game-canvas-container">
             <canvas id="game-canvas"></canvas>
             <div id="floating-export-container" class="hidden">
@@ -89,6 +116,16 @@
                 <button id="cancel-selection-btn" class="secondary-btn">Cancel</button>
             </div>
         </main>
+
+        <!-- RIGHT: Players panel -->
+        <aside id="players-panel">
+            <div class="players-panel-header">
+                <span class="cat-title" style="margin:0">Players</span>
+            </div>
+            <div id="player-list">
+                <!-- JS populates player items -->
+            </div>
+        </aside>
     </div>
     <script type="module" src="main.js"></script>
 </body>
