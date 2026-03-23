@@ -272,27 +272,26 @@ class LegoGame {
                 pos.z = Math.round(pos.z);
                 
                 if (intersect.object !== this.floor) {
-                    // Check face normal: if side-face hit, treat like floor placement
-                    const worldNormal = intersect.face.normal.clone()
-                        .transformDirection(intersect.object.matrixWorld);
+                    let brick = intersect.object;
+                    while (brick && !brick.userData.typeId && brick.parent) {
+                        brick = brick.parent;
+                    }
                     
-                    if (worldNormal.y > 0.5) {
-                        // Top face — stack on top of brick
-                        let brick = intersect.object;
-                        while (brick && !brick.userData.typeId && brick.parent) {
-                            brick = brick.parent;
-                        }
-                        if (brick && brick.userData.height) {
-                            pos.y = brick.position.y + brick.userData.height;
+                    if (brick) {
+                        const brickY = brick.position.y;
+                        const brickH = brick.userData.height || 1;
+                        
+                        // If we hit anything at or above the top surface (like studs), stack.
+                        // Otherwise (hitting the side), place at the same level.
+                        if (intersect.point.y >= brickY + brickH - 0.01) {
+                            pos.y = brickY + brickH;
                         } else {
-                            const hitBox = new THREE.Box3().setFromObject(intersect.object);
-                            pos.y = hitBox.max.y;
+                            pos.y = brickY;
                         }
-                        pos.y = Math.round(pos.y * 3) / 3;
                     } else {
-                        // Side face — place on floor level
                         pos.y = 0;
                     }
+                    pos.y = Math.round(pos.y * 3) / 3;
                 } else {
                     pos.y = 0;
                 }
@@ -526,23 +525,27 @@ class LegoGame {
         });
     }
 
-    // Sets opacity on all mesh children of a brick group.
-    // Pass null to restore to the base opacity.
     _setBrickOpacity(brick, opacity) {
         brick.traverse(child => {
             if (!child.isMesh) return;
-            // Cache original opacity once
+            
+            // Store original values once
             if (child.userData.baseOpacity === undefined) {
                 child.userData.baseOpacity = child.material.opacity ?? 1.0;
+                child.userData.baseTransparent = child.material.transparent;
             }
+
+            // To have independent opacity per brick, we MUST clone the material 
+            // the first time we modify it, as Three.js materials are shared by default.
+            if (!child.userData.isCloned) {
+                child.material = child.material.clone();
+                child.userData.isCloned = true;
+            }
+
             const target = (opacity === null) ? child.userData.baseOpacity : opacity;
-            
-            // Avoid excessive material updates
-            if (child.material.opacity !== target) {
-                child.material.transparent = target < 1.0;
-                child.material.opacity = target;
-                child.material.needsUpdate = true;
-            }
+            child.material.transparent = (opacity !== null) || child.userData.baseTransparent;
+            child.material.opacity = target;
+            child.material.needsUpdate = true;
         });
     }
 
