@@ -350,6 +350,52 @@ header h1 {
     border: 2px solid rgba(0,0,0,0.05);
 }
 
+#player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    padding: 10px 15px;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.player-item.is-me {
+    border-color: #58cc02;
+    background: #f7ffef;
+}
+
+.player-item.highlighted {
+    background: #fff9c4;
+    border-color: #fbc02d;
+}
+
+.eye-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.eye-btn:hover {
+    background: #f0f0f0;
+}
+
+.player-item.highlighted .eye-btn {
+    background: #fff176;
+}
+
 .instructions {
     background: #fff;
     border: 2px solid var(--border-color);

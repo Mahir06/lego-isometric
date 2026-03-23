@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createBrick, BRICK_TYPES, BRICK_COLORS } from './bricks.js';
 import { db } from './firebase-config.js';
-import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved } from 'firebase/database';
+import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get } from 'firebase/database';
 
 class LegoGame {
     constructor() {
@@ -13,6 +13,12 @@ class LegoGame {
         this.container = document.getElementById('game-canvas-container');
         this.landingScreen = document.getElementById('landing-screen');
         this.roomCodeDisplay = document.getElementById('room-code-display');
+        this.playerListEl = document.getElementById('player-list');
+        
+        // Player Identity
+        this.playerId = localStorage.getItem('lego_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
+        localStorage.setItem('lego_player_id', this.playerId);
+        this.highlightedPlayerId = null;
         
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xf0faff);
@@ -407,12 +413,86 @@ class LegoGame {
         };
     }
 
+    updatePlayerList(playersData) {
+        if (!this.playerListEl || !playersData) return;
+        this.playerListEl.innerHTML = '';
+        
+        const players = Object.values(playersData);
+        players.forEach(player => {
+            const item = document.createElement('div');
+            item.className = `player-item ${player.id === this.playerId ? 'is-me' : ''} ${this.highlightedPlayerId === player.id ? 'highlighted' : ''}`;
+            
+            const name = document.createElement('span');
+            name.innerText = player.id === this.playerId ? `${player.name} (You)` : player.name;
+            
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'eye-btn';
+            eyeBtn.innerHTML = '👁️';
+            eyeBtn.title = this.highlightedPlayerId === player.id ? 'Show All' : `Show only ${player.name}'s bricks`;
+            eyeBtn.onclick = () => this.togglePlayerHighlight(player.id);
+            
+            item.appendChild(name);
+            item.appendChild(eyeBtn);
+            this.playerListEl.appendChild(item);
+        });
+    }
+
+    async togglePlayerHighlight(playerId) {
+        if (this.highlightedPlayerId === playerId) {
+            this.highlightedPlayerId = null;
+        } else {
+            this.highlightedPlayerId = playerId;
+        }
+        
+        // Update 3D scene
+        this.bricks.forEach(brick => {
+            const isTarget = (this.highlightedPlayerId === null || brick.userData.playerId === this.highlightedPlayerId);
+            const targetOpacity = isTarget ? 1.0 : 0.1;
+            
+            brick.traverse(child => {
+                if (child.isMesh) {
+                    child.material.transparent = true;
+                    // Store original opacity if not already stored
+                    if (child.userData.originalOpacity === undefined) {
+                        child.userData.originalOpacity = child.material.opacity;
+                    }
+                    child.material.opacity = isTarget ? child.userData.originalOpacity : 0.1;
+                    // Disable shadow for dimmed bricks to keep view clean
+                    child.castShadow = isTarget;
+                    child.receiveShadow = isTarget;
+                }
+            });
+        });
+
+        // Update UI locally (listeners will handle full sync later)
+        if (db && this.roomCode) {
+            const snapshot = await get(ref(db, `rooms/${this.roomCode}/players`));
+            this.updatePlayerList(snapshot.val());
+        }
+    }
+
     enterRoom(code) {
         console.log('Entering Room:', code);
         this.roomCode = code;
         if (this.roomCodeDisplay) this.roomCodeDisplay.innerText = code;
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
+        
+        // Register Player
+        if (db) {
+            const playerRef = ref(db, `rooms/${code}/players/${this.playerId}`);
+            set(playerRef, {
+                id: this.playerId,
+                name: `Builder ${this.playerId.substring(2)}`,
+                lastActive: Date.now()
+            });
+
+            // Listen for player changes
+            const playersRef = ref(db, `rooms/${code}/players`);
+            onValue(playersRef, (snapshot) => {
+                this.updatePlayerList(snapshot.val());
+            });
+        }
         
         // Fix camera aspect ratio and renderer size after showing
         setTimeout(() => this.onWindowResize(), 10);
@@ -431,6 +511,7 @@ class LegoGame {
                 brick.position.set(data.x, data.y, data.z);
                 brick.rotation.y = data.ry;
                 brick.userData.firebaseKey = snapshot.key;
+                brick.userData.playerId = data.playerId;
                 brick.castShadow = true;
                 brick.receiveShadow = true;
                 
@@ -460,7 +541,8 @@ class LegoGame {
                 x: this.ghostBrick.position.x,
                 y: this.ghostBrick.position.y,
                 z: this.ghostBrick.position.z,
-                ry: this.ghostBrick.rotation.y
+                ry: this.ghostBrick.rotation.y,
+                playerId: this.playerId
             };
             
             if (this.bricksRef) {
@@ -603,7 +685,8 @@ class LegoGame {
                 x: Math.round(worldPos.x),
                 y: worldPos.y, // Keep precise Y for plates/bricks
                 z: Math.round(worldPos.z),
-                ry: worldEuler.y
+                ry: worldEuler.y,
+                playerId: this.playerId
             };
 
             if (this.bricksRef) {
