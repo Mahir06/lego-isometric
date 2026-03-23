@@ -196,6 +196,37 @@ header h1 {
     letter-spacing: 0.5px;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.room-badge {
+    background: #f7ffef;
+    border: 2px solid #58cc02;
+    color: #46a302;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 3px 0 #58cc02;
+}
+
+#room-code-display {
+    color: #58cc02;
+    background: white;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 1.1rem;
+}
+
 #sidebar {
     grid-area: sidebar;
     background: var(--sidebar-bg);

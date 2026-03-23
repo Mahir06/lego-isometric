@@ -12,6 +12,7 @@ class LegoGame {
         this.canvas = document.getElementById('game-canvas');
         this.container = document.getElementById('game-canvas-container');
         this.landingScreen = document.getElementById('landing-screen');
+        this.roomCodeDisplay = document.getElementById('room-code-display');
         
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xf0faff);
@@ -409,6 +410,7 @@ class LegoGame {
     enterRoom(code) {
         console.log('Entering Room:', code);
         this.roomCode = code;
+        if (this.roomCodeDisplay) this.roomCodeDisplay.innerText = code;
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
         
