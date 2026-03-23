@@ -5,7 +5,7 @@ import { getDatabase } from 'firebase/database';
 const firebaseConfig = {
     apiKey: "AIzaSyDJMwR8ubiKgUds5dZb2Bi09Otua9Rf37U",
     authDomain: "lego-isometric.firebaseapp.com",
-    databaseURL: "https://lego-isometric-default-rtdb.firebaseio.com/",
+    databaseURL: "https://lego-isometric-default-rtdb.firebaseio.com",
     projectId: "lego-isometric",
     storageBucket: "lego-isometric.firebasestorage.app",
     messagingSenderId: "277172742147",
