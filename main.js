@@ -458,9 +458,18 @@ class LegoGame {
     updatePlayerList(playersData) {
         if (!this.playerListEl) return;
         this.playerListEl.innerHTML = '';
-        if (!playersData) return;
         
-        const players = Object.values(playersData);
+        // Always ensure current player is in the list
+        const players = playersData ? Object.values(playersData) : [];
+        const hasMe = players.some(p => p.id === this.playerId);
+        
+        if (!hasMe) {
+            players.push({
+                id: this.playerId,
+                name: this.playerName || 'You'
+            });
+        }
+        
         players.forEach(player => {
             const item = document.createElement('div');
             const isMe = player.id === this.playerId;
@@ -527,9 +536,13 @@ class LegoGame {
                 child.userData.baseOpacity = child.material.opacity ?? 1.0;
             }
             const target = (opacity === null) ? child.userData.baseOpacity : opacity;
-            child.material.transparent = target < 1.0;
-            child.material.opacity = target;
-            child.material.needsUpdate = true;
+            
+            // Avoid excessive material updates
+            if (child.material.opacity !== target) {
+                child.material.transparent = target < 1.0;
+                child.material.opacity = target;
+                child.material.needsUpdate = true;
+            }
         });
     }
 
