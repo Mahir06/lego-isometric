@@ -272,21 +272,27 @@ class LegoGame {
                 pos.z = Math.round(pos.z);
                 
                 if (intersect.object !== this.floor) {
-                    let brick = intersect.object;
-                    while (brick && !brick.userData.typeId && brick.parent) {
-                        brick = brick.parent;
-                    }
+                    // Check face normal: if side-face hit, treat like floor placement
+                    const worldNormal = intersect.face.normal.clone()
+                        .transformDirection(intersect.object.matrixWorld);
                     
-                    if (brick && brick.userData.height) {
-                        pos.y = brick.position.y + brick.userData.height;
-                    } else {
-                        const hitBox = new THREE.Box3().setFromObject(intersect.object);
-                        pos.y = hitBox.max.y;
-                        if (intersect.object.geometry && intersect.object.geometry.type === 'CylinderGeometry' && intersect.object.scale.y !== 1) {
-                            pos.y -= 0.2;
+                    if (worldNormal.y > 0.5) {
+                        // Top face — stack on top of brick
+                        let brick = intersect.object;
+                        while (brick && !brick.userData.typeId && brick.parent) {
+                            brick = brick.parent;
                         }
+                        if (brick && brick.userData.height) {
+                            pos.y = brick.position.y + brick.userData.height;
+                        } else {
+                            const hitBox = new THREE.Box3().setFromObject(intersect.object);
+                            pos.y = hitBox.max.y;
+                        }
+                        pos.y = Math.round(pos.y * 3) / 3;
+                    } else {
+                        // Side face — place on floor level
+                        pos.y = 0;
                     }
-                    pos.y = Math.round(pos.y * 3) / 3;
                 } else {
                     pos.y = 0;
                 }
@@ -491,34 +497,40 @@ class LegoGame {
     }
 
     togglePlayerHighlight(playerId) {
-        // Toggle off if already highlighting this player
+        // Toggle off if already highlighting
         this.highlightedPlayerId = (this.highlightedPlayerId === playerId) ? null : playerId;
-        
-        // Update every brick's opacity in the 3D scene
-        this.bricks.forEach(brick => {
-            const isTarget = this.highlightedPlayerId === null || brick.userData.playerId === this.highlightedPlayerId;
-            
-            brick.traverse(child => {
-                if (!child.isMesh) return;
-                // Snapshot the material opacity once
-                if (child.userData.baseOpacity === undefined) {
-                    child.userData.baseOpacity = child.material.opacity;
-                }
-                child.material = child.material.clone();
-                child.material.transparent = true;
-                child.material.opacity = isTarget ? child.userData.baseOpacity : 0.08;
-                child.material.needsUpdate = true;
-                child.castShadow = isTarget;
-                child.receiveShadow = isTarget;
-            });
-        });
+        this.applyHighlightState();
 
-        // Re-render player list to update button state (using cached data)
+        // Update UI to show active state on eye button
         if (db && this.roomCode) {
             get(ref(db, `rooms/${this.roomCode}/players`)).then(snap => {
                 this.updatePlayerList(snap.val());
             });
         }
+    }
+
+    applyHighlightState() {
+        this.bricks.forEach(brick => {
+            const isTarget = this.highlightedPlayerId === null ||
+                             brick.userData.playerId === this.highlightedPlayerId;
+            this._setBrickOpacity(brick, isTarget ? null : 0.07);
+        });
+    }
+
+    // Sets opacity on all mesh children of a brick group.
+    // Pass null to restore to the base opacity.
+    _setBrickOpacity(brick, opacity) {
+        brick.traverse(child => {
+            if (!child.isMesh) return;
+            // Cache original opacity once
+            if (child.userData.baseOpacity === undefined) {
+                child.userData.baseOpacity = child.material.opacity ?? 1.0;
+            }
+            const target = (opacity === null) ? child.userData.baseOpacity : opacity;
+            child.material.transparent = target < 1.0;
+            child.material.opacity = target;
+            child.material.needsUpdate = true;
+        });
     }
 
     enterRoom(code) {
@@ -567,6 +579,12 @@ class LegoGame {
                 
                 this.scene.add(brick);
                 this.bricks.push(brick);
+
+                // Apply current highlight state to the newly added brick
+                if (this.highlightedPlayerId !== null) {
+                    const isTarget = brick.userData.playerId === this.highlightedPlayerId;
+                    this._setBrickOpacity(brick, isTarget ? null : 0.07);
+                }
             });
 
             // Listen for removals
