@@ -72,7 +72,7 @@ class LegoGame {
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
         const d = 10;
-        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 5000);
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, -5000, 5000);
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(0, 0, 0);
     }
@@ -84,6 +84,12 @@ class LegoGame {
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(10, 20, 10);
         dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -500;
+        dirLight.shadow.camera.right = 500;
+        dirLight.shadow.camera.top = 500;
+        dirLight.shadow.camera.bottom = -500;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
         this.scene.add(dirLight);
 
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
