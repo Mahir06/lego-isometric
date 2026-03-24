@@ -20,27 +20,32 @@ export function createBrick(type, color, opacity = 1.0) {
     });
 
     let body;
-    const gap = type.noGap ? 0 : GAP;
     if (type.shape === 'cylinder') {
-        const geom = new THREE.CylinderGeometry(width * UNIT / 2 - gap, width * UNIT / 2 - gap, height, 32);
+        const geom = new THREE.CylinderGeometry(width * UNIT / 2 - GAP, width * UNIT / 2 - GAP, height, 32);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
-    } else if (type.shape === 'slope') {
-        const shape = new THREE.Shape();
-        shape.moveTo(-width * UNIT / 2 + gap, -height / 2);
-        shape.lineTo(width * UNIT / 2 - gap, -height / 2);
-        shape.lineTo(width * UNIT / 2 - gap, height / 2 - 1/3); // Exact fraction
-        shape.lineTo(-width * UNIT / 2 + gap, height / 2);
-        shape.lineTo(-width * UNIT / 2 + gap, -height / 2);
-
-        const extrudeSettings = { depth: depth * UNIT - gap, bevelEnabled: false };
-        const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        geom.rotateY(Math.PI / 2);
+    } else if (type.shape === 'rod') {
+        const geom = new THREE.CylinderGeometry(0.125, 0.125, height, 16);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
-        body.position.z = -(depth * UNIT - gap) / 2;
+    } else if (type.shape === 'technic') {
+        const geom = new THREE.BoxGeometry(width * UNIT - GAP, height, depth * UNIT - GAP);
+        body = new THREE.Mesh(geom, material);
+        body.position.y = height / 2;
+        
+        // Add hole visual (visual only for now)
+        const holeCount = Math.floor(width);
+        for (let i = 0; i < holeCount; i++) {
+            const holeOffset = -(width * UNIT) / 2 + UNIT / 2 + i * UNIT;
+            const holeGeom = new THREE.CylinderGeometry(0.2, 0.2, depth * UNIT + 0.02, 16);
+            const holeMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            const hole = new THREE.Mesh(holeGeom, holeMat);
+            hole.rotateX(Math.PI / 2);
+            hole.position.set(holeOffset, 0, 0);
+            body.add(hole);
+        }
     } else {
-        const geom = new THREE.BoxGeometry(width * UNIT - gap, height, depth * UNIT - gap);
+        const geom = new THREE.BoxGeometry(width * UNIT - GAP, height, depth * UNIT - GAP);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
     }
@@ -62,6 +67,8 @@ export function createBrick(type, color, opacity = 1.0) {
                         m.position.set(startX + x * UNIT, height + STUD_HEIGHT / 2, startZ + z * UNIT);
                         m.castShadow = true;
                         m.receiveShadow = true;
+                        m.userData.isStud = true;
+                        m.userData.type = 'top';
                         group.add(m);
                     }
                 }
@@ -71,6 +78,8 @@ export function createBrick(type, color, opacity = 1.0) {
                 stud.position.set(s.x, s.y, s.z);
                 stud.castShadow = true;
                 stud.receiveShadow = true;
+                stud.userData.isStud = true;
+                stud.userData.type = 'side';
                 group.add(stud);
             }
         });
@@ -119,16 +128,16 @@ export const BRICK_TYPES = [
     { id: 'R 2x2', w: 2, d: 2, h: 1, shape: 'cylinder', studs: [{pos: 'top'}], cat: 'Rounds' },
     { id: 'R 1x1 P', w: 1, d: 1, h: 1/3, shape: 'cylinder', studs: [{pos: 'top'}], cat: 'Rounds' },
 
-    // --- Slopes ---
-    { id: 'S 2x1', w: 2, d: 1, h: 1, shape: 'slope', cat: 'Slopes' },
-    { id: 'S 3x1', w: 3, d: 1, h: 1, shape: 'slope', cat: 'Slopes' },
-    { id: 'S 4x2', w: 4, d: 2, h: 1, shape: 'slope', cat: 'Slopes' },
+    // --- Technic ---
+    { id: 'T 1x1', w: 1, d: 1, h: 1, shape: 'technic', studs: [{pos: 'top'}], cat: 'Technic' },
+    { id: 'T 1x2', w: 2, d: 1, h: 1, shape: 'technic', studs: [{pos: 'top'}], cat: 'Technic' },
+    { id: 'T 1x4', w: 4, d: 1, h: 1, shape: 'technic', studs: [{pos: 'top'}], cat: 'Technic' },
+
+    // --- Rods ---
+    { id: 'Rod 3L', w: 1, d: 1, h: 3, shape: 'rod', cat: 'Rods' },
 
     // --- Special ---
     { id: '1x1 H', w: 1, d: 1, h: 1, shape: 'box', studs: [{pos: 'top'}, {pos: 'side', x: 0, y: 0.5, z: 0.5}], cat: 'Special' },
-
-    // --- Baseplates ---
-    { id: '32x32 BP', w: 32, d: 32, h: 1/3, shape: 'box', studs: [{pos: 'top'}], cat: 'Baseplates', noGap: true },
 ];
 
 export const BRICK_COLORS = [

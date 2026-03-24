@@ -44,12 +44,7 @@ class LegoGame {
         this.selectionState = 'none';
         this.importGhost = null;
         this.importPivot = new THREE.Vector3();
-
-        // --- Sound Effects ---
-        this.placeSound = new Audio('freesound_community-lego-piece-pressed-105360.mp3');
-        this.breakSound = new Audio('son_duquotidient-bruit-lego-qui-ce-casse-404055.mp3');
-        this.placeSound.volume = 0.5;
-        this.breakSound.volume = 0.5;
+        this.arrowOffset = new THREE.Vector3(0, 0, 0); // Finer adjustments
 
         // Sidebar toggle
         document.getElementById('sidebar-toggle-btn').onclick = () => {
@@ -72,7 +67,7 @@ class LegoGame {
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
         const d = 10;
-        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, -5000, 5000);
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(0, 0, 0);
     }
@@ -84,12 +79,6 @@ class LegoGame {
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(10, 20, 10);
         dirLight.castShadow = true;
-        dirLight.shadow.camera.left = -500;
-        dirLight.shadow.camera.right = 500;
-        dirLight.shadow.camera.top = 500;
-        dirLight.shadow.camera.bottom = -500;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
         this.scene.add(dirLight);
 
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
@@ -108,49 +97,15 @@ class LegoGame {
     }
 
     setupGrid() {
-        const floorSize = 4000;
-        const floorGeom = new THREE.PlaneGeometry(floorSize, floorSize);
+        const floorGeom = new THREE.PlaneGeometry(100, 100);
         floorGeom.rotateX(-Math.PI / 2);
         this.floor = new THREE.Mesh(floorGeom, new THREE.MeshBasicMaterial({ visible: false }));
         this.scene.add(this.floor);
 
-        // --- Infinite Grid Shader ---
-        const gridVertexShader = `
-            varying vec3 vWorldPosition;
-            void main() {
-                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                vWorldPosition = worldPosition.xyz;
-                gl_Position = projectionMatrix * viewMatrix * worldPosition;
-            }
-        `;
-
-        const gridFragmentShader = `
-            varying vec3 vWorldPosition;
-            void main() {
-                // Secondary grid lines (every 1 unit, aligned with studs)
-                float grid1 = 0.0;
-                if (fract(vWorldPosition.x + 0.01) < 0.02 || fract(vWorldPosition.z + 0.01) < 0.02) grid1 = 1.0;
-                
-                // Primary grid lines (every 10 units)
-                float grid10 = 0.0;
-                if (fract((vWorldPosition.x + 0.01) / 10.0) < 0.002 || fract((vWorldPosition.z + 0.01) / 10.0) < 0.002) grid10 = 1.0;
-
-                float alpha = mix(0.05, 0.15, grid10);
-                if (grid1 <= 0.0 && grid10 <= 0.0) discard;
-                
-                gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
-            }
-        `;
-
-        const gridMat = new THREE.ShaderMaterial({
-            vertexShader: gridVertexShader,
-            fragmentShader: gridFragmentShader,
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-
-        this.grid = new THREE.Mesh(floorGeom, gridMat);
-        this.grid.position.y = -0.01; // Slightly below bricks
+        // Grid helper for visual reference
+        this.grid = new THREE.GridHelper(40, 40, 0x000000, 0x000000);
+        this.grid.material.opacity = 0.1;
+        this.grid.material.transparent = true;
         this.scene.add(this.grid);
 
         // Selection Box for Export
@@ -284,6 +239,50 @@ class LegoGame {
                 this.selectionState = 'none';
                 this.selectionBox.visible = false;
             }
+
+            // Arrow key adjustments (1 stud - camera relative)
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+
+                // Get camera directions projected on XZ floor
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+                forward.y = 0;
+                forward.normalize();
+
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+                right.y = 0;
+                right.normalize();
+
+                // Helper to find the cardinal grid axis closest to a direction
+                const getClosestAxis = (vec) => {
+                    const axes = [
+                        new THREE.Vector3(1, 0, 0),
+                        new THREE.Vector3(-1, 0, 0),
+                        new THREE.Vector3(0, 0, 1),
+                        new THREE.Vector3(0, 0, -1)
+                    ];
+                    let maxDot = -Infinity;
+                    let closest = axes[0];
+                    axes.forEach(a => {
+                        const dot = vec.dot(a);
+                        if (dot > maxDot) {
+                            maxDot = dot;
+                            closest = a;
+                        }
+                    });
+                    return closest;
+                };
+
+                const moveForward = getClosestAxis(forward);
+                const moveRight = getClosestAxis(right);
+
+                if (e.key === 'ArrowUp') this.arrowOffset.add(moveForward);
+                if (e.key === 'ArrowDown') this.arrowOffset.sub(moveForward);
+                if (e.key === 'ArrowLeft') this.arrowOffset.sub(moveRight);
+                if (e.key === 'ArrowRight') this.arrowOffset.add(moveRight);
+                
+                this.updateGhostBrick();
+            }
         });
     }
 
@@ -291,6 +290,12 @@ class LegoGame {
         const rect = this.canvas.getBoundingClientRect();
         this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        // Reset manual arrow-key offset when moving mouse again
+        if (this.arrowOffset.x !== 0 || this.arrowOffset.z !== 0) {
+            this.arrowOffset.set(0, 0, 0);
+        }
+        
         this.updateGhostBrick();
     }
 
@@ -359,7 +364,11 @@ class LegoGame {
                     offsetZ = (this.currentBrickType.w % 2 === 0) ? 0.5 : 0;
                 }
 
-                this.ghostBrick.position.set(pos.x + offsetX, pos.y, pos.z + offsetZ);
+                this.ghostBrick.position.set(
+                    pos.x + offsetX + this.arrowOffset.x, 
+                    pos.y, 
+                    pos.z + offsetZ + this.arrowOffset.z
+                );
                 this.ghostBrick.rotation.y = this.currentRotation;
 
                 const status = this.checkPlacement(this.ghostBrick);
@@ -384,9 +393,9 @@ class LegoGame {
             const intersect = this.raycaster.intersectObject(this.floor)[0];
             if (intersect) {
                 this.selectionMarker.position.set(
-                    Math.round(intersect.point.x),
+                    Math.round(intersect.point.x) + this.arrowOffset.x,
                     0.05,
-                    Math.round(intersect.point.z)
+                    Math.round(intersect.point.z) + this.arrowOffset.z
                 );
             }
         } else {
@@ -399,9 +408,9 @@ class LegoGame {
             const intersect = this.raycaster.intersectObject(this.floor)[0];
             if (intersect) {
                 this.importGhost.position.set(
-                    Math.round(intersect.point.x),
+                    Math.round(intersect.point.x) + this.arrowOffset.x,
                     0,
-                    Math.round(intersect.point.z)
+                    Math.round(intersect.point.z) + this.arrowOffset.z
                 );
                 this.importGhost.visible = true;
             } else {
@@ -414,41 +423,47 @@ class LegoGame {
         brick.updateMatrixWorld(true);
         const currentBox = new THREE.Box3().setFromObject(brick);
         
-        // COLLISION: Rise slightly more (0.22) to clear studs (0.20)
-        const collisionBox = currentBox.clone().expandByScalar(-0.05);
-        // Only raise collision box if we are NOT on the floor
-        if (brick.position.y > 0.05) {
-            collisionBox.min.y += 0.22; 
-        }
-
-        for (const existingBrick of this.bricks) {
-            const existingBox = new THREE.Box3().setFromObject(existingBrick);
-            if (collisionBox.intersectsBox(existingBox)) {
-                return { isValid: false, reason: 'Collision with existing brick' };
-            }
-        }
-
-        if (brick.position.y > 0.1) {
-            const supportBox = currentBox.clone().expandByScalar(-0.1);
-            supportBox.min.y -= 0.15;
-            supportBox.max.y = currentBox.min.y + 0.05;
-
-            let hasSupport = false;
-            let supportHasStuds = false;
-
-            for (const existingBrick of this.bricks) {
-                const existingBox = new THREE.Box3().setFromObject(existingBrick);
-                if (supportBox.intersectsBox(existingBox)) {
-                    hasSupport = true;
-                    if (existingBrick.userData.hasStuds) supportHasStuds = true;
-                    break;
+        // COLLISION: Slightly smaller box to ignore standard adjacent contact
+        const collisionBox = currentBox.clone().expandByScalar(-0.02);
+        
+        // When checking collisions, we only care about the MAIN BODIES, not the studs.
+        // This allows bricks to sit on top of studs.
+        for (const other of this.bricks) {
+            if (other === brick) continue;
+            
+            // Get the first child of the brick, which is the body mesh
+            const otherBody = other.children[0];
+            if (otherBody) {
+                const otherBox = new THREE.Box3().setFromObject(otherBody);
+                if (collisionBox.intersectsBox(otherBox)) {
+                    return { isValid: false, reason: 'Collision' };
                 }
             }
-
-            if (!hasSupport) return { isValid: false, reason: 'No support below' };
-            if (!supportHasStuds) return { isValid: false, reason: 'Bottom brick has no studs (Tile)' };
         }
 
+        // CONNECTIVITY: Must be on floor or connected to a stud
+        if (brick.position.y < 0.1) return { isValid: true };
+
+        let hasConnection = false;
+        const ghostBox = new THREE.Box3().setFromObject(brick);
+        
+        // We only check if the GHOST intersects with any STUDS of any existing brick
+        for (const other of this.bricks) {
+            if (other === brick) continue;
+            
+            other.traverse(child => {
+                if (child.userData && child.userData.isStud) {
+                    const studBox = new THREE.Box3().setFromObject(child);
+                    // Expand slightly to ensure overlapping detection
+                    if (ghostBox.intersectsBox(studBox)) {
+                        hasConnection = true;
+                    }
+                }
+            });
+            if (hasConnection) break;
+        }
+
+        if (!hasConnection) return { isValid: false, reason: 'No connection' };
         return { isValid: true };
     }
 
@@ -649,33 +664,6 @@ class LegoGame {
                 }
             });
 
-            // Pre-place baseplates if room is new
-            get(this.bricksRef).then(snapshot => {
-                if (!snapshot.exists()) {
-                    console.log('New room detected. Placing initial baseplates...');
-                    const bpType = BRICK_TYPES.find(t => t.id === '32x32 BP');
-                    const greenColor = 0x388e3c; // Green
-                    
-                    // Place 4 baseplates in 2x2 grid
-                    const offsets = [-16, 16];
-                    offsets.forEach(ox => {
-                        offsets.forEach(oz => {
-                            // Even-sized bricks (32) need 0.5 offset to align with grid edges
-                            push(this.bricksRef, {
-                                typeId: bpType.id,
-                                color: greenColor,
-                                opacity: 1.0,
-                                x: ox + 0.5,
-                                y: 0,
-                                z: oz + 0.5,
-                                ry: 0,
-                                playerId: 'system'
-                            });
-                        });
-                    });
-                }
-            });
-
             // Listen for removals
             onChildRemoved(this.bricksRef, (snapshot) => {
                 const brick = this.bricks.find(b => b.userData.firebaseKey === snapshot.key);
@@ -691,10 +679,6 @@ class LegoGame {
 
     onMouseClick(e) {
         if (this.ghostBrick && this.isPlacementValid) {
-            // Play sound locally for immediate feedback
-            this.placeSound.currentTime = 0;
-            this.placeSound.play().catch(e => console.warn('Sound play blocked:', e));
-
             const brickData = {
                 typeId: this.currentBrickType.id,
                 color: this.currentBrickColor,
@@ -725,10 +709,6 @@ class LegoGame {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.bricks, true);
         if (intersects.length > 0) {
-            // Play sound locally for immediate feedback
-            this.breakSound.currentTime = 0;
-            this.breakSound.play().catch(e => console.warn('Sound play blocked:', e));
-
             let obj = intersects[0].object;
             while (obj.parent && obj.parent.type !== 'Scene' && obj.parent !== null) {
                 obj = obj.parent;
@@ -1049,14 +1029,7 @@ class LegoGame {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        this.controls.update();
-
-        // Make grid follow camera for "infinite" effect
-        if (this.grid) {
-            this.grid.position.x = this.camera.position.x;
-            this.grid.position.z = this.camera.position.z;
-        }
-
+        if (this.controls) this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 }
