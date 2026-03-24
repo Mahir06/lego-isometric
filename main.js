@@ -96,15 +96,49 @@ class LegoGame {
     }
 
     setupGrid() {
-        const floorGeom = new THREE.PlaneGeometry(100, 100);
+        const floorSize = 4000;
+        const floorGeom = new THREE.PlaneGeometry(floorSize, floorSize);
         floorGeom.rotateX(-Math.PI / 2);
         this.floor = new THREE.Mesh(floorGeom, new THREE.MeshBasicMaterial({ visible: false }));
         this.scene.add(this.floor);
 
-        // Grid helper for visual reference
-        this.grid = new THREE.GridHelper(40, 40, 0x000000, 0x000000);
-        this.grid.material.opacity = 0.1;
-        this.grid.material.transparent = true;
+        // --- Infinite Grid Shader ---
+        const gridVertexShader = `
+            varying vec3 vWorldPosition;
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            }
+        `;
+
+        const gridFragmentShader = `
+            varying vec3 vWorldPosition;
+            void main() {
+                // Secondary grid lines (every 1 unit)
+                float grid1 = 0.0;
+                if (fract(vWorldPosition.x + 0.5) < 0.02 || fract(vWorldPosition.z + 0.5) < 0.02) grid1 = 1.0;
+                
+                // Primary grid lines (every 10 units)
+                float grid10 = 0.0;
+                if (fract((vWorldPosition.x + 0.5) / 10.0) < 0.002 || fract((vWorldPosition.z + 0.5) / 10.0) < 0.002) grid10 = 1.0;
+
+                float alpha = mix(0.05, 0.15, grid10);
+                if (grid1 <= 0.0 && grid10 <= 0.0) discard;
+                
+                gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
+            }
+        `;
+
+        const gridMat = new THREE.ShaderMaterial({
+            vertexShader: gridVertexShader,
+            fragmentShader: gridFragmentShader,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        this.grid = new THREE.Mesh(floorGeom, gridMat);
+        this.grid.position.y = -0.01; // Slightly below bricks
         this.scene.add(this.grid);
 
         // Selection Box for Export
@@ -600,6 +634,32 @@ class LegoGame {
                 if (this.highlightedPlayerId !== null) {
                     const isTarget = brick.userData.playerId === this.highlightedPlayerId;
                     this._setBrickOpacity(brick, isTarget ? null : 0.07);
+                }
+            });
+
+            // Pre-place baseplates if room is new
+            get(this.bricksRef).then(snapshot => {
+                if (!snapshot.exists()) {
+                    console.log('New room detected. Placing initial baseplates...');
+                    const bpType = BRICK_TYPES.find(t => t.id === '32x32 BP');
+                    const greenColor = 0x388e3c; // Green
+                    
+                    // Place 4 baseplates in 2x2 grid
+                    const offsets = [-16, 16];
+                    offsets.forEach(ox => {
+                        offsets.forEach(oz => {
+                            push(this.bricksRef, {
+                                typeId: bpType.id,
+                                color: greenColor,
+                                opacity: 1.0,
+                                x: ox,
+                                y: 0,
+                                z: oz,
+                                ry: 0,
+                                playerId: 'system'
+                            });
+                        });
+                    });
                 }
             });
 

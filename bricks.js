@@ -125,6 +125,9 @@ export const BRICK_TYPES = [
 
     // --- Special ---
     { id: '1x1 H', w: 1, d: 1, h: 1, shape: 'box', studs: [{pos: 'top'}, {pos: 'side', x: 0, y: 0.5, z: 0.5}], cat: 'Special' },
+
+    // --- Baseplates ---
+    { id: '32x32 BP', w: 32, d: 32, h: 1/3, shape: 'box', studs: [{pos: 'top'}], cat: 'Baseplates' },
 ];
 
 export const BRICK_COLORS = [
