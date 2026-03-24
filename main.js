@@ -72,7 +72,7 @@ class LegoGame {
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
         const d = 10;
-        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 5000);
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(0, 0, 0);
     }
@@ -121,13 +121,13 @@ class LegoGame {
         const gridFragmentShader = `
             varying vec3 vWorldPosition;
             void main() {
-                // Secondary grid lines (every 1 unit)
+                // Secondary grid lines (every 1 unit, aligned with studs)
                 float grid1 = 0.0;
-                if (fract(vWorldPosition.x + 0.5) < 0.02 || fract(vWorldPosition.z + 0.5) < 0.02) grid1 = 1.0;
+                if (fract(vWorldPosition.x + 0.01) < 0.02 || fract(vWorldPosition.z + 0.01) < 0.02) grid1 = 1.0;
                 
                 // Primary grid lines (every 10 units)
                 float grid10 = 0.0;
-                if (fract((vWorldPosition.x + 0.5) / 10.0) < 0.002 || fract((vWorldPosition.z + 0.5) / 10.0) < 0.002) grid10 = 1.0;
+                if (fract((vWorldPosition.x + 0.01) / 10.0) < 0.002 || fract((vWorldPosition.z + 0.01) / 10.0) < 0.002) grid10 = 1.0;
 
                 float alpha = mix(0.05, 0.15, grid10);
                 if (grid1 <= 0.0 && grid10 <= 0.0) discard;
@@ -654,13 +654,14 @@ class LegoGame {
                     const offsets = [-16, 16];
                     offsets.forEach(ox => {
                         offsets.forEach(oz => {
+                            // Even-sized bricks (32) need 0.5 offset to align with grid edges
                             push(this.bricksRef, {
                                 typeId: bpType.id,
                                 color: greenColor,
                                 opacity: 1.0,
-                                x: ox,
+                                x: ox + 0.5,
                                 y: 0,
-                                z: oz,
+                                z: oz + 0.5,
                                 ry: 0,
                                 playerId: 'system'
                             });
@@ -1042,7 +1043,14 @@ class LegoGame {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        if (this.controls) this.controls.update();
+        this.controls.update();
+
+        // Make grid follow camera for "infinite" effect
+        if (this.grid) {
+            this.grid.position.x = this.camera.position.x;
+            this.grid.position.z = this.camera.position.z;
+        }
+
         this.renderer.render(this.scene, this.camera);
     }
 }

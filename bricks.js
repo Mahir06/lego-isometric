@@ -20,26 +20,27 @@ export function createBrick(type, color, opacity = 1.0) {
     });
 
     let body;
+    const gap = type.noGap ? 0 : GAP;
     if (type.shape === 'cylinder') {
-        const geom = new THREE.CylinderGeometry(width * UNIT / 2 - GAP, width * UNIT / 2 - GAP, height, 32);
+        const geom = new THREE.CylinderGeometry(width * UNIT / 2 - gap, width * UNIT / 2 - gap, height, 32);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
     } else if (type.shape === 'slope') {
         const shape = new THREE.Shape();
-        shape.moveTo(-width * UNIT / 2 + GAP, -height / 2);
-        shape.lineTo(width * UNIT / 2 - GAP, -height / 2);
-        shape.lineTo(width * UNIT / 2 - GAP, height / 2 - 1/3); // Exact fraction
-        shape.lineTo(-width * UNIT / 2 + GAP, height / 2);
-        shape.lineTo(-width * UNIT / 2 + GAP, -height / 2);
+        shape.moveTo(-width * UNIT / 2 + gap, -height / 2);
+        shape.lineTo(width * UNIT / 2 - gap, -height / 2);
+        shape.lineTo(width * UNIT / 2 - gap, height / 2 - 1/3); // Exact fraction
+        shape.lineTo(-width * UNIT / 2 + gap, height / 2);
+        shape.lineTo(-width * UNIT / 2 + gap, -height / 2);
 
-        const extrudeSettings = { depth: depth * UNIT - GAP, bevelEnabled: false };
+        const extrudeSettings = { depth: depth * UNIT - gap, bevelEnabled: false };
         const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         geom.rotateY(Math.PI / 2);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
-        body.position.z = -(depth * UNIT - GAP) / 2;
+        body.position.z = -(depth * UNIT - gap) / 2;
     } else {
-        const geom = new THREE.BoxGeometry(width * UNIT - GAP, height, depth * UNIT - GAP);
+        const geom = new THREE.BoxGeometry(width * UNIT - gap, height, depth * UNIT - gap);
         body = new THREE.Mesh(geom, material);
         body.position.y = height / 2;
     }
@@ -127,7 +128,7 @@ export const BRICK_TYPES = [
     { id: '1x1 H', w: 1, d: 1, h: 1, shape: 'box', studs: [{pos: 'top'}, {pos: 'side', x: 0, y: 0.5, z: 0.5}], cat: 'Special' },
 
     // --- Baseplates ---
-    { id: '32x32 BP', w: 32, d: 32, h: 1/3, shape: 'box', studs: [{pos: 'top'}], cat: 'Baseplates' },
+    { id: '32x32 BP', w: 32, d: 32, h: 1/3, shape: 'box', studs: [{pos: 'top'}], cat: 'Baseplates', noGap: true },
 ];
 
 export const BRICK_COLORS = [
