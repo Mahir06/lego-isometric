@@ -45,6 +45,12 @@ class LegoGame {
         this.importGhost = null;
         this.importPivot = new THREE.Vector3();
 
+        // --- Sound Effects ---
+        this.placeSound = new Audio('freesound_community-lego-piece-pressed-105360.mp3');
+        this.breakSound = new Audio('son_duquotidient-bruit-lego-qui-ce-casse-404055.mp3');
+        this.placeSound.volume = 0.5;
+        this.breakSound.volume = 0.5;
+
         // Sidebar toggle
         document.getElementById('sidebar-toggle-btn').onclick = () => {
             this.uiContainer.classList.toggle('sidebar-collapsed');
@@ -678,6 +684,10 @@ class LegoGame {
 
     onMouseClick(e) {
         if (this.ghostBrick && this.isPlacementValid) {
+            // Play sound locally for immediate feedback
+            this.placeSound.currentTime = 0;
+            this.placeSound.play().catch(e => console.warn('Sound play blocked:', e));
+
             const brickData = {
                 typeId: this.currentBrickType.id,
                 color: this.currentBrickColor,
@@ -708,6 +718,10 @@ class LegoGame {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.bricks, true);
         if (intersects.length > 0) {
+            // Play sound locally for immediate feedback
+            this.breakSound.currentTime = 0;
+            this.breakSound.play().catch(e => console.warn('Sound play blocked:', e));
+
             let obj = intersects[0].object;
             while (obj.parent && obj.parent.type !== 'Scene' && obj.parent !== null) {
                 obj = obj.parent;
