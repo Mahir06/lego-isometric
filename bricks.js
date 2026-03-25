@@ -16,7 +16,8 @@ export function createBrick(type, color, opacity = 1.0) {
         specular: 0x222222,
         shininess: 50,
         transparent: opacity < 1.0,
-        opacity: opacity
+        opacity: opacity,
+        depthWrite: opacity === 1.0
     });
 
     let body;

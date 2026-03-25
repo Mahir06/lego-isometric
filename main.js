@@ -626,7 +626,7 @@ class LegoGame {
         backBtn.onclick = () => {
             // Explicitly remove from room if going back from a specific room
             if (this._currentScreen === 'overcooked-room' && this.overcookedRoomId) {
-                if (db) remove(ref(db, `overcooked/rooms/${this.overcookedRoomId}/players/${this.playerId}`));
+                if (db) remove(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/players/${this.playerId}`));
             }
 
             switch (this._currentScreen) {
@@ -650,7 +650,7 @@ class LegoGame {
                 if (confirm('Exit this world and return to the main screen?')) {
                     // Explicitly remove from overcooked room if in one
                     if (this.overcookedRoomId && db) {
-                        remove(ref(db, `overcooked/rooms/${this.overcookedRoomId}/players/${this.playerId}`));
+                        remove(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/players/${this.playerId}`));
                     }
                     // Reload for a clean state
                     window.location.reload();
@@ -696,6 +696,7 @@ class LegoGame {
                     const meta = metaSnap.val();
                     if (meta && meta.gameMode === 'overcooked') {
                         this.gameMode = 'overcooked';
+                        this.roomCode = code;
                         const lobbyCodeEl = document.getElementById('overcooked-lobby-code');
                         if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code;
                         this.showScreen('overcooked-lobby');
@@ -726,6 +727,7 @@ class LegoGame {
             try {
                 const code = this._pendingRoomCode;
                 if (this.gameMode === 'overcooked') {
+                    this.roomCode = code;
                     if (db && code) {
                         set(ref(db, `rooms/${code}/meta`), { gameMode: 'overcooked', createdAt: Date.now() })
                             .catch(e => console.warn('Could not write world meta:', e));
@@ -1455,7 +1457,7 @@ class LegoGame {
             if (grid) grid.innerHTML = '<div style="color:#666; padding:20px;">Firebase not connected. Check your configuration to use Multiplayer.</div>';
         }
 
-        const roomsRef = db ? ref(db, 'overcooked/rooms') : null;
+        const roomsRef = db ? ref(db, `rooms/${this.roomCode}/overcooked_rooms`) : null;
         if (roomsRef) this.seedDefaultRooms();
 
         // Note: back navigation is handled by the global back button (see showScreen/setupLobby)
@@ -1523,7 +1525,7 @@ class LegoGame {
         ];
 
         for (const room of defaultRooms) {
-            const roomRef = ref(db, `overcooked/rooms/${room.id}`);
+            const roomRef = ref(db, `rooms/${this.roomCode}/overcooked_rooms/${room.id}`);
             try {
                 const snapshot = await get(roomRef);
                 if (!snapshot.exists()) {
@@ -1550,7 +1552,7 @@ class LegoGame {
         const readyBtn = document.getElementById('ready-btn');
         readyBtn.onclick = () => {
             this.isReady = !this.isReady;
-            set(ref(db, `overcooked/rooms/${roomId}/players/${this.playerId}/ready`), this.isReady);
+            set(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${roomId}/players/${this.playerId}/ready`), this.isReady);
             readyBtn.innerText = this.isReady ? 'CANCEL READY' : "I'M READY!";
             readyBtn.classList.toggle('active', this.isReady);
         };
@@ -1558,13 +1560,13 @@ class LegoGame {
         const leaveBtn = document.getElementById('leave-overcooked-btn');
         if (leaveBtn) {
             leaveBtn.onclick = () => {
-                if (db) remove(ref(db, `overcooked/rooms/${roomId}/players/${this.playerId}`));
+                if (db) remove(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${roomId}/players/${this.playerId}`));
                 this.showScreen('overcooked-lobby');
             };
         }
 
         const displayName = this.playerName || `Builder ${this.playerId.substring(2, 7).toUpperCase()}`;
-        const playerRef = db ? ref(db, `overcooked/rooms/${roomId}/players/${this.playerId}`) : null;
+        const playerRef = db ? ref(db, `rooms/${this.roomCode}/overcooked_rooms/${roomId}/players/${this.playerId}`) : null;
         if (playerRef) {
             set(playerRef, {
                 id: this.playerId,
@@ -1576,7 +1578,7 @@ class LegoGame {
         }
 
         // Listen for this room's players
-        const allPlayersRef = db ? ref(db, `overcooked/rooms/${roomId}/players`) : null;
+        const allPlayersRef = db ? ref(db, `rooms/${this.roomCode}/overcooked_rooms/${roomId}/players`) : null;
         if (allPlayersRef) {
             onValue(allPlayersRef, (snapshot) => {
                 const players = snapshot.val();
@@ -1598,7 +1600,7 @@ class LegoGame {
                     document.getElementById('overcooked-player-count').innerText = `${playerArr.length}/6 Players`;
                     
                     // CHECK START CONDITION
-                    const allReady = playerArr.length >= 4 && playerArr.every(p => p.ready);
+                    const allReady = playerArr.length >= 3 && playerArr.every(p => p.ready);
                     if (allReady && this.gameState === 'WAITING') {
                         this.startOvercookedGame();
                     }
@@ -1607,7 +1609,7 @@ class LegoGame {
         }
 
         // Listen for room state (transitions from Waiting to Build)
-        const roomStatusPath = `overcooked/rooms/${roomId}/status`;
+        const roomStatusPath = `rooms/${this.roomCode}/overcooked_rooms/${roomId}/status`;
         const roomStateRef = db ? ref(db, roomStatusPath) : null;
         if (roomStateRef) {
             onValue(roomStateRef, (snapshot) => {
@@ -1620,7 +1622,7 @@ class LegoGame {
 
     startOvercookedGame() {
         // Only one player needs to trigger the state change
-        const roomStateRef = ref(db, `overcooked/rooms/${this.overcookedRoomId}/status`);
+        const roomStateRef = ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/status`);
         set(roomStateRef, 'ROUND_1_BUILD');
     }
 
@@ -1656,12 +1658,12 @@ class LegoGame {
     startTimer(seconds, callback) {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerExpired = false;
-        let timeLeft = seconds;
+        const endTime = Date.now() + seconds * 1000;
         const fill = document.getElementById('timer-progress-fill');
         const text = document.getElementById('timer-text');
         
         this.timerInterval = setInterval(() => {
-            timeLeft--;
+            const timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
             const m = Math.floor(timeLeft / 60);
             const s = timeLeft % 60;
             text.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
@@ -1689,11 +1691,11 @@ class LegoGame {
             ry: b.rotation.y
         }));
         
-        const snapshotRef = ref(db, `overcooked/rooms/${this.overcookedRoomId}/snapshot`);
+        const snapshotRef = ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/snapshot`);
         set(snapshotRef, structure);
         
         // Mark room as complete
-        set(ref(db, `overcooked/rooms/${this.overcookedRoomId}/status`), 'ROUND_1_COMPLETE');
+        set(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/status`), 'ROUND_1_COMPLETE');
         
         // Initiate matching with other finished teams (Pair-Based)
         this.initiateMatching();
@@ -1702,7 +1704,7 @@ class LegoGame {
     async initiateMatching() {
         this.showModal('Rounding Up Teams...', 'Waiting for another team to match for Round 2 swap.', '⏳');
         
-        const queueRef = ref(db, 'overcooked/matching_queue');
+        const queueRef = ref(db, `rooms/${this.roomCode}/overcooked_matching_queue`);
         
         // Use a transaction to pick a pair from the queue or join it
         try {
@@ -1725,8 +1727,8 @@ class LegoGame {
                     // I found a pair!
                     console.log('Matched with team:', waitingRoomId);
                     // Write the pair link to both rooms
-                    set(ref(db, `overcooked/rooms/${this.overcookedRoomId}/pairedWith`), waitingRoomId);
-                    set(ref(db, `overcooked/rooms/${waitingRoomId}/pairedWith`), this.overcookedRoomId);
+                    set(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`), waitingRoomId);
+                    set(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${waitingRoomId}/pairedWith`), this.overcookedRoomId);
                     this.proceedToRound2(waitingRoomId);
                 } else {
                     // I am the one waiting in the queue
@@ -1740,7 +1742,7 @@ class LegoGame {
     }
 
     waitForPair() {
-        const pairingRef = ref(db, `overcooked/rooms/${this.overcookedRoomId}/pairedWith`);
+        const pairingRef = ref(db, `rooms/${this.roomCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`);
         onValue(pairingRef, (snapshot) => {
             const partnerId = snapshot.val();
             if (partnerId && this.gameState === 'ROUND_1_COMPLETE') {
@@ -1762,7 +1764,7 @@ class LegoGame {
         }
         
         // Structure Swap: Fetch the paired room's snapshot
-        const snapshot = await get(ref(db, `overcooked/rooms/${otherRoomId}/snapshot`));
+        const snapshot = await get(ref(db, `rooms/${this.roomCode}/overcooked_rooms/${otherRoomId}/snapshot`));
         const assignedStructure = snapshot.val();
         
         // Assign Role
