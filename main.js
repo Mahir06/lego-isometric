@@ -1650,7 +1650,13 @@ class LegoGame {
         document.getElementById('fac-spectate-back').onclick = () => {
             this.overcookedRoomId = null;
             if (this.bricksRef) off(this.bricksRef);
+            
+            // Toggle top-level containers
+            this.landingScreen.classList.remove('hidden');
+            this.uiContainer.classList.add('hidden');
+            
             this.showScreen('facilitator-dashboard');
+            
             // Hide the spectator back button when not spectating
             document.getElementById('fac-spectate-back').classList.add('hidden');
             // Ensure sidebar stays hidden for facilitators
