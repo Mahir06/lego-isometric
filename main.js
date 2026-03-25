@@ -989,7 +989,12 @@ class LegoGame {
     onMouseClick(e) {
         if (this.isFacilitator) return;
         if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
-            if (!this.canPerform('BUILDER')) return;
+            const type = BRICK_TYPES.find(t => t.id === this.selectedType);
+            if (type && type.category === 'removal') {
+                if (!this.canPerform('REMOVER')) return;
+            } else {
+                if (!this.canPerform('BUILDER')) return;
+            }
         }
 
         if (this.ghostBrick && this.isPlacementValid) {
@@ -1625,12 +1630,27 @@ class LegoGame {
                         const players = room.players ? Object.values(room.players) : [];
                         const playerNames = players.map(p => p.name).join(', ') || 'No players yet';
                         
+                        // Add selection for manual pairing
+                        const otherRooms = Object.values(rooms).filter(r => r.id !== room.id);
+                        let pairSelectHtml = `
+                            <div class="fac-pair-select" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                                <label style="font-size: 0.7rem; color: #999; display: block; margin-bottom: 4px;">PAIR WITH:</label>
+                                <select class="fac-pair-dropdown" style="width: 100%; padding: 4px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #ddd;" 
+                                    onclick="event.stopPropagation()"
+                                    onchange="window.antigravity.setRoomPair('${room.id}', this.value)">
+                                    <option value="">-- Manual Selection --</option>
+                                    ${otherRooms.map(r => `<option value="${r.id}" ${room.pairedWith === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+
                         card.innerHTML = `
                             <div class="room-status-dot ${statusClass}"></div>
                             <div class="fac-room-info">
                                 <h4>${room.name}</h4>
                                 <p>Status: <span style="font-weight:700; color: ${statusClass === 'status-build' ? '#1cb0f6' : '#666'}">${statusText}</span></p>
                                 <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">👤 ${playerNames}</p>
+                                ${room.status === 'ROUND_1_COMPLETE' ? pairSelectHtml : ''}
                             </div>
                             <div class="fac-room-players">${players.length}/6 Players</div>
                         `;
@@ -1705,21 +1725,34 @@ class LegoGame {
             const rooms = snapshot.val();
             if (rooms) {
                 const finishedRooms = Object.values(rooms).filter(r => r.status === 'ROUND_1_COMPLETE');
-                if (finishedRooms.length < 2) {
-                    alert('Not enough teams have finished Round 1 yet.');
-                    return;
-                }
                 
-                for (let i = 0; i < finishedRooms.length; i += 2) {
-                    const rA = finishedRooms[i];
-                    const rB = finishedRooms[i + 1];
-                    if (rA && rB) {
-                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/pairedWith`), rB.id);
-                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/pairedWith`), rA.id);
-                        // The status change triggers the proceedToRound2 on client side
-                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/status`), 'ROUND_2_BUILD');
-                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/status`), 'ROUND_2_BUILD');
+                // Track who we've paired so we don't do it twice
+                const paired = new Set();
+
+                finishedRooms.forEach(room => {
+                    if (paired.has(room.id)) return;
+                    
+                    let partnerId = room.pairedWith;
+                    // FALLBACK to automatic if no manual pair or pair didn't finish
+                    if (!partnerId || !rooms[partnerId] || rooms[partnerId].status !== 'ROUND_1_COMPLETE') {
+                        const nextUnpaired = finishedRooms.find(r => r.id !== room.id && !paired.has(r.id));
+                        if (nextUnpaired) partnerId = nextUnpaired.id;
                     }
+
+                    if (partnerId && rooms[partnerId]) {
+                        const partner = rooms[partnerId];
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${room.id}/pairedWith`), partnerId);
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${partnerId}/pairedWith`), room.id);
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${room.id}/status`), 'ROUND_2_BUILD');
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${partnerId}/status`), 'ROUND_2_BUILD');
+                        paired.add(room.id);
+                        paired.add(partnerId);
+                    }
+                });
+
+                if (paired.size < finishedRooms.length) {
+                    const unpaired = finishedRooms.filter(r => !paired.has(r.id)).map(r => r.name);
+                    if (unpaired.length > 0) alert(`Warning: Not all teams could be paired: ${unpaired.join(', ')}`);
                 }
             }
         };
@@ -1755,7 +1788,7 @@ class LegoGame {
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
         
-        document.getElementById('room-code-display').innerText = `Spectating: ${roomId.substring(0, 6)}`;
+        document.getElementById('room-code-display').innerText = `Spectating: ${roomId}`;
         if (this.ghostBrick) this.ghostBrick.visible = false;
         
         // Hide normal build tools
@@ -2210,26 +2243,38 @@ class LegoGame {
         document.getElementById('role-name').innerText = role;
         document.getElementById('role-desc').innerText = descriptions[role];
         
-        // Tool Visibility logic
-        const inventory = document.getElementById('inventory-panel');
-        const sidebar = document.getElementById('sidebar');
-        const colorPicker = document.getElementById('color-picker-container'); 
+        // Ensure ghost brick is hidden initially for non-builders
+        if (role !== 'BUILDER' && this.ghostBrick) {
+            this.ghostBrick.visible = false;
+        }
+
+        // Header tool visibility
+        const clearBtn = document.getElementById('clear-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const importBtn = document.getElementById('import-btn');
         
-        // Default: Enable nothing for players in Round 2 except their specific role
+        if (exportBtn) exportBtn.classList.add('hidden');
+        if (importBtn) importBtn.classList.add('hidden');
+        if (clearBtn) {
+            if (role === 'REMOVER') clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        // Sidebar sections
+        const inventory = document.getElementById('sidebar');
+        const brickSelector = document.getElementById('brick-selector');
+        const colorSelector = document.getElementById('color-selector');
+        
         if (role === 'BUILDER') {
-            inventory.classList.remove('hidden');
-            sidebar.classList.add('hidden'); // No rotate/delete
-        } else if (role === 'REMOVER') {
-            inventory.classList.add('hidden');
-            sidebar.classList.remove('hidden');
-            // Hide specific sub-tools if possible, or just use canPerform
+            if (brickSelector) brickSelector.classList.remove('hidden');
+            if (colorSelector) colorSelector.classList.add('hidden');
         } else if (role === 'COLOR_PICKER') {
-            inventory.classList.add('hidden');
-            sidebar.classList.add('hidden');
-            if (colorPicker) colorPicker.classList.remove('hidden');
-        } else if (role === 'ROTATOR') {
-            inventory.classList.add('hidden');
-            sidebar.classList.remove('hidden');
+            if (brickSelector) brickSelector.classList.add('hidden');
+            if (colorSelector) colorSelector.classList.remove('hidden');
+        } else {
+            // Rotators and Removers don't need the sidebar sections
+            if (brickSelector) brickSelector.classList.add('hidden');
+            if (colorSelector) colorSelector.classList.add('hidden');
         }
     }
 

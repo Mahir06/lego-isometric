@@ -871,15 +871,15 @@ header {
 #role-desc { font-size: 0.75rem; font-weight: 600; opacity: 0.9; }
 
 /* MODALS */
-#modal-overlay {
+.modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 3000;
+    background: rgba(0,0,0,0.7);
+    z-index: 4000;
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
 }
 
 .modal-content.duolingo-style {
