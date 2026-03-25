@@ -688,6 +688,8 @@ class LegoGame {
             localStorage.setItem('lego_player_name', this.playerName);
             this._pendingRoomCode = code;
             this._isWorldCreator = false;
+            const facToggle = document.getElementById('join-as-facilitator');
+            this.isFacilitator = facToggle ? facToggle.checked : false;
 
             // Check game mode of this world
             if (db) {
@@ -698,10 +700,21 @@ class LegoGame {
                         this.gameMode = 'overcooked';
                         this.roomCode = code;
                         this.worldCode = code;
-                        const lobbyCodeEl = document.getElementById('overcooked-lobby-code');
-                        if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code;
-                        this.showScreen('overcooked-lobby');
-                        this.setupOvercookedLobby();
+                        
+                        // Load dynamic settings
+                        get(ref(db, `rooms/${this.worldCode}/settings/overcooked`)).then(snap => {
+                            if (snap.exists()) this.gameSettings = snap.val();
+                        });
+
+                        if (this.isFacilitator) {
+                            this.showScreen('facilitator-dashboard');
+                            this.setupFacilitatorDashboard();
+                        } else {
+                            const lobbyCodeEl = document.getElementById('overcooked-lobby-code');
+                            if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code;
+                            this.showScreen('overcooked-lobby');
+                            this.setupOvercookedLobby();
+                        }
                         return;
                     }
                 } catch (e) {
@@ -727,17 +740,26 @@ class LegoGame {
         startBtn.onclick = () => {
             try {
                 const code = this._pendingRoomCode;
+                const facToggle = document.getElementById('join-as-facilitator');
+                this.isFacilitator = facToggle ? facToggle.checked : false;
+
                 if (this.gameMode === 'overcooked') {
                     this.roomCode = code;
-                        this.worldCode = code;
+                    this.worldCode = code;
                     if (db && code) {
                         set(ref(db, `rooms/${code}/meta`), { gameMode: 'overcooked', createdAt: Date.now() })
                             .catch(e => console.warn('Could not write world meta:', e));
                     }
-                    const lobbyCodeEl = document.getElementById('overcooked-lobby-code');
-                    if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code || '-';
-                    this.showScreen('overcooked-lobby');
-                    this.setupOvercookedLobby();
+                    
+                    if (this.isFacilitator) {
+                        this.showScreen('facilitator-dashboard');
+                        this.setupFacilitatorDashboard();
+                    } else {
+                        const lobbyCodeEl = document.getElementById('overcooked-lobby-code');
+                        if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code || '-';
+                        this.showScreen('overcooked-lobby');
+                        this.setupOvercookedLobby();
+                    }
                 } else {
                     if (db && code) {
                         set(ref(db, `rooms/${code}/meta`), { gameMode: 'free-build', createdAt: Date.now() })
@@ -1518,6 +1540,152 @@ class LegoGame {
         }
     }
 
+    setupFacilitatorDashboard() {
+        if (this._facLobbyInitialized) return;
+        this._facLobbyInitialized = true;
+        
+        document.getElementById('fac-save-settings').onclick = () => {
+            const r1 = parseInt(document.getElementById('fac-r1-time').value) || 180;
+            const r2 = parseInt(document.getElementById('fac-r2-time').value) || 600;
+            const mp = parseInt(document.getElementById('fac-min-players').value) || 3;
+            
+            if (db) {
+                set(ref(db, `rooms/${this.worldCode}/settings/overcooked`), {
+                    r1Time: r1,
+                    r2Time: r2,
+                    minPlayers: mp
+                }).then(() => alert('Settings Saved & Synced!')).catch(e => console.error(e));
+            }
+        };
+
+        const roomsRef = db ? ref(db, `rooms/${this.worldCode}/overcooked_rooms`) : null;
+        if (roomsRef) {
+            onValue(roomsRef, (snapshot) => {
+                const rooms = snapshot.val();
+                const listEl = document.getElementById('fac-room-list');
+                listEl.innerHTML = '';
+                if (rooms) {
+                    Object.values(rooms).forEach(room => {
+                        const card = document.createElement('div');
+                        const colorClass = room.name.toLowerCase().includes('yellow') ? 'room-yellow' : 
+                                         room.name.toLowerCase().includes('green') ? 'room-green' :
+                                         room.name.toLowerCase().includes('blue') ? 'room-blue' : 'room-red';
+                        
+                        card.className = `room-card ${colorClass}`;
+                        const count = room.players ? Object.keys(room.players).length : 0;
+                        
+                        card.innerHTML = `
+                            <div class="room-icon">🏠</div>
+                            <div class="room-name">${room.name}</div>
+                            <div class="room-count">Status: ${room.status} | ${count} Players</div>
+                            <p style="font-size: 0.8rem; margin: 5px 0 0; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.5); padding: 4px; border-radius: 4px; text-align:center;">Click to Spectate</p>
+                        `;
+                        
+                        card.onclick = () => this.spectateRoom(room.id);
+                        listEl.appendChild(card);
+                    });
+                }
+            });
+        }
+
+        document.getElementById('fac-force-r1').onclick = async () => {
+            if (!confirm('Force start Round 1 for all waiting rooms?')) return;
+            const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms`));
+            const rooms = snapshot.val();
+            if (rooms) {
+                Object.values(rooms).forEach(room => {
+                    if (room.status === 'WAITING') {
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${room.id}/status`), 'ROUND_1_BUILD');
+                    }
+                });
+            }
+        };
+
+        document.getElementById('fac-force-r2').onclick = async () => {
+            if (!confirm('Force swap and start Round 2? This pairs remaining Round 1 rooms.')) return;
+            const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms`));
+            const rooms = snapshot.val();
+            if (rooms) {
+                const eligibleRooms = Object.values(rooms).filter(r => r.status === 'ROUND_1_COMPLETE' || r.status === 'ROUND_1_BUILD');
+                for (let i = 0; i < eligibleRooms.length; i += 2) {
+                    const rA = eligibleRooms[i];
+                    const rB = eligibleRooms[i + 1];
+                    
+                    if (rA && rB) {
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/pairedWith`), rB.id);
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/pairedWith`), rA.id);
+                        // The listeners in waitForPair / initiateMatching will handle the actual transition
+                    } else if (rA) {
+                        alert(`Warning: Odd number of teams. ${rA.name} has no pair!`);
+                    }
+                }
+            }
+        };
+
+        document.getElementById('fac-exit').onclick = () => {
+            if (confirm('Exit Mission Control and return to the main screen?')) {
+                window.location.reload();
+            }
+        };
+    }
+
+    spectateRoom(roomId) {
+        this.overcookedRoomId = roomId;
+        this.toggleReferenceView(false);
+        this.showScreen('ui'); // Hide dashboard, show 3D canvas
+        document.getElementById('room-code-display').innerText = `Spectating: ${roomId.substring(0, 6)}`;
+        
+        // Hide normal build tools
+        document.querySelectorAll('.tool-btn:not(#exit-world-btn)').forEach(el => el.classList.add('hidden'));
+        document.getElementById('inventory-panel').classList.add('hidden');
+        document.getElementById('camera-btn').classList.remove('hidden'); // allow screenshots
+        
+        // Detach previous listeners
+        if (this.bricksRef) off(this.bricksRef);
+        
+        // Bind to the specific room's bricks
+        this.bricksRef = ref(db, `rooms/${this.worldCode}_${roomId}/bricks`);
+        this.bricks.forEach(b => this.scene.remove(b));
+        this.bricks = [];
+        
+        onChildAdded(this.bricksRef, (snapshot) => {
+            const data = snapshot.val();
+            const type = BRICK_TYPES.find(t => t.id === data.typeId);
+            if (!type) return;
+            const brick = createBrick(type, data.color, 1.0);
+            brick.position.set(data.x, data.y, data.z);
+            brick.rotation.y = data.ry;
+            brick.userData = {
+                typeId: type.id,
+                color: data.color,
+                firebaseKey: snapshot.key
+            };
+            this.scene.add(brick);
+            this.bricks.push(brick);
+        });
+
+        onChildRemoved(this.bricksRef, (snapshot) => {
+            const brick = this.bricks.find(b => b.userData.firebaseKey === snapshot.key);
+            if (brick) {
+                this.scene.remove(brick);
+                this.bricks = this.bricks.filter(b => b !== brick);
+            }
+        });
+
+        // Override exit button
+        const exitBtn = document.getElementById('exit-world-btn');
+        exitBtn.onclick = () => {
+            this.showScreen('facilitator-dashboard');
+            document.querySelectorAll('.tool-btn:not(#exit-world-btn)').forEach(el => el.classList.remove('hidden'));
+            document.getElementById('inventory-panel').classList.remove('hidden');
+            exitBtn.onclick = () => {
+                if (confirm('Exit this world and return to the main screen?')) {
+                    window.location.reload();
+                }
+            };
+        };
+    }
+
     async seedDefaultRooms() {
         if (!db) return;
         const defaultRooms = [
@@ -1551,6 +1719,9 @@ class LegoGame {
         this.toggleReferenceView(false);
         this.showScreen('overcooked-room');
         document.getElementById('overcooked-room-title').innerText = 'Room: ' + roomId.substring(0, 6);
+        
+        const minP = this.gameSettings?.minPlayers || 3;
+        document.getElementById('overcooked-min-players').innerText = `Need ${minP} to start`;
 
         const readyBtn = document.getElementById('ready-btn');
         readyBtn.onclick = () => {
@@ -1603,7 +1774,8 @@ class LegoGame {
                     document.getElementById('overcooked-player-count').innerText = `${playerArr.length}/6 Players`;
                     
                     // CHECK START CONDITION
-                    const allReady = playerArr.length >= 3 && playerArr.every(p => p.ready);
+                    const minP = this.gameSettings?.minPlayers || 3;
+                    const allReady = playerArr.length >= minP && playerArr.every(p => p.ready);
                     if (allReady && this.gameState === 'WAITING') {
                         this.startOvercookedGame();
                     }
@@ -1644,8 +1816,9 @@ class LegoGame {
         // Show Round 1 Modal
         this.showModal('Round 1', 'Create the most complex structure your team can build. Be as creative as possible.', '🍳');
         
-        // Start 3-minute timer
-        this.startTimer(180, () => this.endRound1());
+        // Start dynamic timer
+        const r1Time = this.gameSettings?.r1Time || 180;
+        this.startTimer(r1Time, () => this.endRound1());
     }
 
     showModal(title, text, icon) {
@@ -1711,6 +1884,7 @@ class LegoGame {
         
         // Use a transaction to pick a pair from the queue or join it
         try {
+            let matchedWith = null;
             const result = await runTransaction(queueRef, (currentData) => {
                 if (currentData === null) {
                     // Queue is empty, I'm the first one waiting
@@ -1719,20 +1893,20 @@ class LegoGame {
                     // I'm already in the queue, stay there
                     return currentData;
                 } else {
-                    // Someone else is waiting, take them and clear the queue
+                    // Someone else is waiting, capture their ID and clear the queue
+                    matchedWith = currentData;
                     return null;
                 }
             });
 
             if (result.committed) {
-                const waitingRoomId = result.snapshot.val();
-                if (waitingRoomId && waitingRoomId !== this.overcookedRoomId) {
+                if (matchedWith && matchedWith !== this.overcookedRoomId) {
                     // I found a pair!
-                    console.log('Matched with team:', waitingRoomId);
+                    console.log('Matched with team:', matchedWith);
                     // Write the pair link to both rooms
-                    set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`), waitingRoomId);
-                    set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${waitingRoomId}/pairedWith`), this.overcookedRoomId);
-                    this.proceedToRound2(waitingRoomId);
+                    set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`), matchedWith);
+                    set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${matchedWith}/pairedWith`), this.overcookedRoomId);
+                    this.proceedToRound2(matchedWith);
                 } else {
                     // I am the one waiting in the queue
                     console.log('Waiting in queue for a partner...');
@@ -1783,7 +1957,9 @@ class LegoGame {
         this.toggleReferenceView(true);
         
         this.showModal('Round 2', 'Recreate the assigned structure! Each player has a restricted role. Coordinate well.', '🔥');
-        this.startTimer(600, () => this.endGame());
+        
+        const r2Time = this.gameSettings?.r2Time || 600;
+        this.startTimer(r2Time, () => this.endGame());
     }
 
     displayRole(role) {
