@@ -1631,7 +1631,11 @@ class LegoGame {
     spectateRoom(roomId) {
         this.overcookedRoomId = roomId;
         this.toggleReferenceView(false);
-        this.showScreen('ui'); // Hide dashboard, show 3D canvas
+        
+        // Hide landing UI and show Main Game Canvas properly
+        this.landingScreen.classList.add('hidden');
+        document.getElementById('ui-container').classList.remove('hidden');
+        
         document.getElementById('room-code-display').innerText = `Spectating: ${roomId.substring(0, 6)}`;
         
         // Hide normal build tools
