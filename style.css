@@ -40,34 +40,145 @@ body {
     backdrop-filter: blur(12px);
 }
 
+.global-back-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 3000;
+    background: white;
+    border: 2.5px solid #e5e5e5;
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    font-family: var(--font-main);
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 0 #e0e0e0;
+}
+.global-back-btn:hover {
+    background: #f7f7f7;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #d8d8d8;
+}
+.global-back-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+/* ── Duolingo Modal Card ─────────────────────────────────────────────── */
 .landing-content {
     background: white;
-    padding: 44px 40px;
-    border-radius: 24px;
-    box-shadow: 0 12px 0 #e0e0e0, 0 20px 40px rgba(0,0,0,0.08);
-    max-width: 520px;
+    border-radius: 20px;
+    box-shadow: 0 8px 0 #d0d0d0, 0 16px 48px rgba(0,0,0,0.1);
+    border: 2.5px solid #e0e0e0;
+    max-width: 680px;
     width: 100%;
-    text-align: center;
-    animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    height: 620px; /* Fixed height for consistency */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes popIn {
-    from { opacity: 0; transform: scale(0.92) translateY(16px); }
+    from { opacity: 0; transform: scale(0.93) translateY(14px); }
     to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.landing-content h1 {
+/* Header — white, bottom border */
+.modal-header {
+    padding: 28px 36px 20px;
+    border-bottom: 2.5px solid #f0f0f0;
+    text-align: center;
+    flex-shrink: 0;
+}
+.modal-header h1 {
     font-family: var(--font-display);
-    font-size: 3rem;
+    font-size: 2.1rem;
     font-weight: 800;
     color: #58cc02;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+}
+.modal-header p {
+    color: #afafaf;
+    font-size: 0.95rem;
 }
 
-.landing-content p {
-    color: #afafaf;
-    font-size: 1rem;
-    margin-bottom: 30px;
+/* Body — scrollable, scrollbars hidden */
+.modal-body {
+    padding: 24px 36px;
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
+}
+.modal-body::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
+}
+
+/* Footer — sticky gray with top border */
+.modal-footer {
+    padding: 20px 36px;
+    background: #f7f7f7;
+    border-top: 2.5px solid #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Lobby header row (title + world code + name badge) */
+.lobby-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    gap: 16px;
+}
+.lobby-header-row h1 { text-align: left; }
+.lobby-header-row p  { text-align: left; }
+.lobby-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* World ID badge (compact now — inside header) */
+.lobby-room-badge {
+    background: #fff;
+    border: 2px solid #e0e0e0;
+    border-radius: 30px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 900;
+    color: #555;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.lobby-room-badge span {
+    color: #58cc02;
+    font-size: 0.88rem;
+    letter-spacing: 1.5px;
+    font-family: 'Bricolage Grotesk', monospace;
+}
+
+/* Player name badge */
+.lobby-player-name {
+    background: #1cb0f6;
+    color: white;
+    border-radius: 30px;
+    padding: 5px 13px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .room-actions {
@@ -77,9 +188,9 @@ body {
 }
 
 .room-input {
-    padding: 16px 20px;
+    padding: 15px 20px;
     border: 2.5px solid #e0e0e0;
-    border-radius: 16px;
+    border-radius: 14px;
     font-size: 1rem;
     font-family: var(--font-display);
     font-weight: 700;
@@ -88,81 +199,60 @@ body {
     transition: border-color 0.2s, box-shadow 0.2s;
     color: var(--text-color);
     background: #fafafa;
+    width: 100%;
 }
-
 .room-input:focus {
     border-color: #58cc02;
     background: white;
     box-shadow: 0 0 0 4px rgba(88, 204, 2, 0.12);
 }
+.room-input::placeholder { font-weight: 500; color: #c8c8c8; }
 
-.room-input::placeholder {
-    font-weight: 500;
-    color: #c8c8c8;
-}
-
-.input-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: #ccc;
-    font-size: 0.8rem;
-    margin: 2px 0;
-}
-.input-divider::before, .input-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e5e5e5;
-}
-
-/* ═══════════════════════════════════
-   BUTTONS
-═══════════════════════════════════ */
+/* ── Buttons ──────────────────────────────────────────────────────────── */
 .primary-btn {
     font-family: var(--font-display);
     background: #58cc02;
     color: white;
     border: none;
-    padding: 16px 30px;
-    border-radius: 18px;
-    font-size: 1.05rem;
+    padding: 15px 28px;
+    border-radius: 50px; /* Fully rounded */
+    font-size: 1rem;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 6px 0 #46a302;
+    box-shadow: 0 5px 0 #46a302;
     transition: transform 0.1s, box-shadow 0.1s;
+    width: 100%;
 }
+.primary-btn:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #46a302; }
+.primary-btn:active { transform: translateY(3px);  box-shadow: 0 1px 0 #46a302; }
 
-.primary-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 0 #46a302;
-}
-
-.primary-btn:active {
-    transform: translateY(3px);
-    box-shadow: 0 2px 0 #46a302;
-}
-
-/* Create room — vibrant blue */
 .primary-btn.secondary-style {
     background: #1cb0f6;
-    box-shadow: 0 6px 0 #0090d9;
+    box-shadow: 0 5px 0 #0090d9;
 }
-.primary-btn.secondary-style:hover { box-shadow: 0 8px 0 #0090d9; }
-.primary-btn.secondary-style:active { box-shadow: 0 2px 0 #0090d9; transform: translateY(3px); }
+.primary-btn.secondary-style:hover  { box-shadow: 0 7px 0 #0090d9; }
+.primary-btn.secondary-style:active { box-shadow: 0 1px 0 #0090d9; transform: translateY(3px); }
+
+.primary-btn.danger { background: #ff4b4b; box-shadow: 0 5px 0 #cc2222; }
+.primary-btn.danger:hover  { box-shadow: 0 7px 0 #cc2222; }
+.primary-btn.danger:active { box-shadow: 0 1px 0 #cc2222; transform: translateY(3px); }
 
 .secondary-btn {
     font-family: var(--font-main);
     background: white;
-    color: #afafaf;
-    border: 2px solid #e0e0e0;
-    padding: 12px 24px;
-    border-radius: 16px;
-    font-size: 1rem;
+    color: #999;
+    border: 2.5px solid #e0e0e0;
+    padding: 13px 24px;
+    border-radius: 50px; /* Fully rounded */
+    font-size: 0.95rem;
+    font-weight: 700;
     cursor: pointer;
     box-shadow: 0 4px 0 #e0e0e0;
     transition: all 0.1s;
+    width: 100%;
 }
+.secondary-btn:hover  { background: #f7f7f7; transform: translateY(-1px); box-shadow: 0 5px 0 #d0d0d0; }
+.secondary-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #e0e0e0; }
 
 /* ═══════════════════════════════════
    GAME MODE GALLERY
@@ -176,7 +266,7 @@ body {
 
 .gallery-item {
     border: 2.5px solid #e0e0e0;
-    border-radius: 20px;
+    border-radius: 28px; /* More rounded Duolingo style */
     padding: 20px 12px 16px;
     cursor: pointer;
     transition: all 0.18s;
@@ -276,7 +366,7 @@ header {
     border: 2px solid #58cc02;
     color: #46a302;
     padding: 5px 12px;
-    border-radius: 12px;
+    border-radius: 50px; /* Pill style */
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 0.78rem;
@@ -301,7 +391,7 @@ header {
 .sidebar-toggle {
     background: none;
     border: 2px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 50px; /* Fully rounded */
     width: 36px;
     height: 36px;
     cursor: pointer;
@@ -339,7 +429,7 @@ header {
     gap: 2px;
     background: white;
     border: 2px solid var(--border-color);
-    border-radius: 14px;
+    border-radius: 50px; /* Fully rounded */
     min-width: 52px;
     height: 48px;
     padding: 0 10px;
@@ -440,7 +530,7 @@ header {
     background: white;
     border: 2px solid var(--border-color);
     padding: 10px 6px;
-    border-radius: 13px;
+    border-radius: 20px; /* Matching the overall rounded theme */
     text-align: center;
     cursor: pointer;
     font-size: 0.76rem;
@@ -482,7 +572,7 @@ header {
     background: white;
     border: 2px solid var(--border-color);
     padding: 5px;
-    border-radius: 10px;
+    border-radius: 50px; /* Circular colors */
     cursor: pointer;
     box-shadow: 0 3px 0 var(--border-color);
     transition: all 0.1s;
@@ -615,3 +705,220 @@ header {
 }
 
 #floating-export-container.hidden { display: none !important; }
+/* ═══════════════════════════════════
+   OVERCOOKED MODE UI
+═══════════════════════════════════ */
+
+/* Room Grid for Master Lobby */
+.room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin: 25px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.room-grid::-webkit-scrollbar { display: none; }
+
+.room-card {
+    background: #f8f8f8;
+    border: 3px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 20px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 6px 0 #e0e0e0;
+}
+
+.room-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 0 #e0e0e0;
+    background: white;
+}
+
+.room-card.room-yellow { border-color: #ffeb3b; box-shadow: 0 6px 0 #fbc02d; }
+.room-card.room-green  { border-color: #8bc34a; box-shadow: 0 6px 0 #689f38; }
+.room-card.room-blue   { border-color: #03a9f4; box-shadow: 0 6px 0 #0288d1; }
+.room-card.room-red    { border-color: #f44336; box-shadow: 0 6px 0 #d32f2f; }
+
+.room-card .room-icon { font-size: 2.22rem; }
+.room-card .room-name { font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+.room-card .room-count { font-size: 0.8rem; color: #afafaf; font-weight: 700; }
+
+/* Ready List */
+.ready-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0 30px;
+    text-align: left;
+    max-height: 240px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.ready-list::-webkit-scrollbar { display: none; }
+
+.ready-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fdfdfd;
+    padding: 12px 18px;
+    border-radius: 16px;
+    border: 2px solid #eee;
+    font-weight: 700;
+}
+
+.ready-item.is-ready {
+    border-color: #58cc02;
+    background: #f7ffef;
+}
+
+.ready-status {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ready-status.ready { color: #58cc02; }
+.ready-status.waiting { color: #ffeb3b; }
+
+.warning-text {
+    color: #ff4d4d;
+    font-size: 0.85rem;
+    font-weight: 800;
+    display: block;
+    margin-top: 5px;
+}
+
+/* OVERCOOKED HUD */
+#overcooked-hud {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+#timer-display {
+    background: white;
+    padding: 8px 24px;
+    border-radius: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 4px 0 #e5e5e5;
+    border: 2px solid #e5e5e5;
+    min-width: 180px;
+    position: relative;
+    overflow: hidden;
+}
+
+#timer-text {
+    font-family: monospace;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #4b4b4b;
+}
+
+.timer-progress-bg {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: #eee;
+}
+
+#timer-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: #58cc02;
+    transition: width 1s linear, background-color 0.5s;
+}
+
+#role-card {
+    background: #1cb0f6;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 6px 0 #0090d9;
+    pointer-events: auto;
+    animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.role-label { font-size: 0.65rem; font-weight: 800; opacity: 0.8; letter-spacing: 1px; }
+#role-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin: 2px 0; }
+#role-desc { font-size: 0.75rem; font-weight: 600; opacity: 0.9; }
+
+/* MODALS */
+#modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content.duolingo-style {
+    background: white;
+    padding: 40px;
+    border-radius: 28px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 12px 0 rgba(0,0,0,0.1);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-icon { font-size: 4rem; margin-bottom: 20px; }
+.modal-content h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.8rem; color: #4b4b4b; margin-bottom: 15px; }
+.modal-content p { color: #777; line-height: 1.5; margin-bottom: 30px; }
+
+.lobby-room-badge {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: #fff;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-weight: 900;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    color: #444;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2.5px solid #f0f0f0;
+    z-index: 10;
+}
+
+.lobby-room-badge span {
+    color: #2e7d32;
+    letter-spacing: 1.5px;
+    font-size: 1.1rem;
+    font-family: 'Bricolage Grotesk', sans-serif;
+}
+

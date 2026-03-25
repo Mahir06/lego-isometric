@@ -42,6 +42,7 @@ export function createBrick(type, color, opacity = 1.0) {
             const hole = new THREE.Mesh(holeGeom, holeMat);
             hole.rotateX(Math.PI / 2);
             hole.position.set(holeOffset, 0, 0);
+            hole.userData.isHole = true;
             body.add(hole);
         }
     } else {

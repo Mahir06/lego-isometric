@@ -10,46 +10,111 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- STEP 1: Name + Join/Create -->
+    <!-- LANDING SCREEN (all pre-game steps) -->
     <div id="landing-screen">
+        <!-- Global back button: shown on all screens except step 1 -->
+        <button id="global-back-btn" class="global-back-btn hidden" title="Back">← Back</button>
+
+        <!-- STEP 1: Name + Join/Create -->
         <div class="landing-content" id="landing-step-1">
-            <h1>LEGO Online</h1>
-            <p>Build together in real-time!</p>
-            <div class="room-actions">
-                <input type="text" id="player-name-input" class="room-input" placeholder="YOUR NAME" maxlength="20">
-                <input type="text" id="room-code-input" class="room-input" placeholder="ROOM CODE (to join a room)" maxlength="6">
-                <button id="join-room-btn" class="primary-btn">JOIN ROOM</button>
-                <button id="create-room-btn" class="primary-btn secondary-style">✦ Create New Room</button>
+            <div class="modal-header">
+                <h1>LEGO Online</h1>
+                <p>Build together in real-time!</p>
+            </div>
+            <div class="modal-body">
+                <div class="room-actions">
+                    <input type="text" id="player-name-input" class="room-input" placeholder="YOUR NAME" maxlength="20">
+                    <input type="text" id="room-code-input" class="room-input" placeholder="WORLD CODE (to join)" maxlength="6">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="join-room-btn" class="primary-btn">JOIN WORLD</button>
+                <button id="create-room-btn" class="secondary-btn">✦ Create New World</button>
             </div>
         </div>
 
-        <!-- STEP 2: Game mode selection (shown after Create Room) -->
+        <!-- STEP 2: Game mode selection -->
         <div class="landing-content hidden" id="landing-step-2">
-            <h1>Choose Mode</h1>
-            <p>What do you want to build today?</p>
-            <div class="gallery">
-                <div class="gallery-item active" id="mode-free-build">
-                    <div class="gallery-icon">🏗️</div>
-                    <span>Free Build</span>
-                    <small>Place bricks freely with your team. No rules, just creativity!</small>
-                </div>
-                <div class="gallery-item disabled" title="Coming Soon">
-                    <div class="gallery-icon">🏁</div>
-                    <span>Race</span>
-                    <small>Compete to build the fastest structure under the clock.</small>
-                </div>
-                <div class="gallery-item disabled" title="Coming Soon">
-                    <div class="gallery-icon">🏰</div>
-                    <span>Siege</span>
-                    <small>Build defences while the other team tries to tear them down.</small>
-                </div>
-                <div class="gallery-item disabled" title="Coming Soon">
-                    <div class="gallery-icon">🌉</div>
-                    <span>Bridge</span>
-                    <small>Collaborate to build the longest bridge across the gap.</small>
+            <div class="modal-header">
+                <h1>Choose Mode</h1>
+                <p>What do you want to build today?</p>
+            </div>
+            <div class="modal-body">
+                <div class="gallery">
+                    <div class="gallery-item active" id="mode-free-build">
+                        <div class="gallery-icon">🏗️</div>
+                        <span>Free Build</span>
+                        <small>Classic sandbox mode. Build whatever you want with friends.</small>
+                    </div>
+                    <div class="gallery-item" id="mode-overcooked">
+                        <div class="gallery-icon">🍳</div>
+                        <span>Overcooked Mode</span>
+                        <small>Team-based puzzle building with unique player roles.</small>
+                    </div>
+                    <div class="gallery-item disabled" title="Coming Soon">
+                        <div class="gallery-icon">🏁</div>
+                        <span>Race</span>
+                        <small>Compete to build the fastest structure under the clock.</small>
+                    </div>
+                    <div class="gallery-item disabled" title="Coming Soon">
+                        <div class="gallery-icon">🏰</div>
+                        <span>Siege</span>
+                        <small>Build defences while the other team tries to tear them down.</small>
+                    </div>
+                    <div class="gallery-item disabled" title="Coming Soon">
+                        <div class="gallery-icon">🌉</div>
+                        <span>Bridge</span>
+                        <small>Collaborate to build the longest bridge across the gap.</small>
+                    </div>
                 </div>
             </div>
-            <button id="start-game-btn" class="primary-btn" style="margin-top: 28px; width: 100%;">Start Building →</button>
+            <div class="modal-footer">
+                <button id="start-game-btn" class="primary-btn">Create World →</button>
+            </div>
+        </div>
+
+        <!-- STEP 3: Overcooked Master Lobby -->
+        <div class="landing-content hidden" id="landing-overcooked-lobby">
+            <div class="modal-header">
+                <div class="lobby-header-row">
+                    <div>
+                        <h1>Overcooked Lobby</h1>
+                        <p>Pick a team room to join!</p>
+                    </div>
+                    <div class="lobby-meta">
+                        <div class="lobby-room-badge" id="overcooked-lobby-code">WORLD: <span>-</span></div>
+                        <div class="lobby-player-name" id="lobby-player-display">👤 <span></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="overcooked-room-grid" class="room-grid">
+                    <!-- JS populates rooms here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="create-overcooked-room-btn" class="secondary-btn">＋ Create New Room</button>
+            </div>
+        </div>
+
+        <!-- STEP 4: Overcooked Room Lobby (Ready System) -->
+        <div class="landing-content hidden" id="landing-overcooked-room">
+            <div class="modal-header">
+                <h1 id="overcooked-room-title">Green Room</h1>
+                <div class="room-status-info">
+                    <span id="overcooked-player-count">0/6 Players</span>
+                    <span id="overcooked-min-players" class="warning-text">Need 4 to start</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="overcooked-ready-list" class="ready-list">
+                    <!-- JS populates players and ready status -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="ready-btn" class="primary-btn">I'M READY!</button>
+                <button id="leave-overcooked-btn" class="secondary-btn">Leave Room</button>
+            </div>
         </div>
     </div>
 
@@ -60,10 +125,14 @@
                 <button id="sidebar-toggle-btn" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
                 <h1 class="logo-text">LEGO</h1>
                 <div id="room-display" class="room-badge">
-                    Room: <span id="room-code-display">------</span>
+                    World: <span id="room-code-display">------</span>
                 </div>
             </div>
             <div class="top-controls">
+                <button id="exit-world-btn" class="tool-btn danger" title="Exit World">
+                    <span class="tool-icon">🚪</span>
+                    <span class="tool-label">Exit World</span>
+                </button>
                 <button id="undo-btn" class="tool-btn" title="Undo">
                     <span class="tool-icon">⟲</span>
                     <span class="tool-label">Undo</span>
@@ -126,6 +195,32 @@
                 <!-- JS populates player items -->
             </div>
         </aside>
+
+        <!-- OVERCOOKED HUD -->
+        <div id="overcooked-hud" class="hidden">
+            <div id="timer-display">
+                <div class="timer-icon">⏱️</div>
+                <div id="timer-text">03:00</div>
+                <div class="timer-progress-bg">
+                    <div id="timer-progress-fill"></div>
+                </div>
+            </div>
+            <div id="role-card">
+                <div class="role-label">YOUR ROLE</div>
+                <div id="role-name">BUILDER</div>
+                <div id="role-desc">Can only place blocks</div>
+            </div>
+        </div>
+
+        <!-- GAME MODALS -->
+        <div id="modal-overlay" class="hidden">
+            <div class="modal-content duolingo-style">
+                <div class="modal-icon" id="modal-icon">🍳</div>
+                <h2 id="modal-title">Round 1</h2>
+                <p id="modal-text">Create the most complex structure your team can build. Be as creative as possible.</p>
+                <button id="close-modal-btn" class="primary-btn">LET'S GO!</button>
+            </div>
+        </div>
     </div>
     <script type="module" src="main.js"></script>
 </body>
