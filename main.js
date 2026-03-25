@@ -1818,38 +1818,47 @@ class LegoGame {
         }
         
         console.log(`[Facilitator] Spectating room: ${roomId} in world: ${world}`);
-        this.bricksRef = ref(db, `rooms/${world}_${roomId}/bricks`);
+        const roomPath = `rooms/${world}_${roomId}/bricks`;
+        this.bricksRef = ref(db, roomPath);
+        
+        // Clear any previously spectated bricks
         this.bricks.forEach(b => this.scene.remove(b));
         this.bricks = [];
         
-        onChildAdded(this.bricksRef, (snapshot) => {
+        // Helper to add a brick from Firebase data
+        const addSpectatorBrick = (snapshot) => {
+            if (this.bricks.some(b => b.userData.firebaseKey === snapshot.key)) return;
             const data = snapshot.val();
             const type = BRICK_TYPES.find(t => t.id === data.typeId);
             if (!type) return;
-            const brick = createBrick(type, data.color, 1.0);
+            const brick = createBrick(type, data.color, data.opacity || 1.0);
             brick.position.set(data.x, data.y, data.z);
-            brick.rotation.y = data.ry;
-            brick.userData = {
-                typeId: type.id,
-                color: data.color,
-                firebaseKey: snapshot.key
-            };
+            brick.rotation.y = data.ry || 0;
+            brick.userData = { typeId: type.id, color: data.color, firebaseKey: snapshot.key };
             this.scene.add(brick);
             this.bricks.push(brick);
+        };
+        
+        // Step 1: Load ALL existing bricks in one shot
+        get(this.bricksRef).then(snapshot => {
+            snapshot.forEach(child => addSpectatorBrick(child));
+            console.log(`[Spectator] Loaded ${this.bricks.length} existing bricks for ${roomId}`);
         });
+        
+        // Step 2: Listen for live changes
+        onChildAdded(this.bricksRef, (snapshot) => addSpectatorBrick(snapshot));
 
         onChildChanged(this.bricksRef, (snapshot) => {
             const data = snapshot.val();
             const brick = this.bricks.find(b => b.userData.firebaseKey === snapshot.key);
             if (brick) {
                 brick.position.set(data.x, data.y, data.z);
-                brick.rotation.y = data.ry;
+                brick.rotation.y = data.ry || 0;
                 if (brick.userData.color !== data.color) {
-                    const type = BRICK_TYPES.find(t => t.id === data.typeId);
-                    if (type) {
-                        brick.material.color.setHex(data.color);
-                        brick.userData.color = data.color;
-                    }
+                    brick.traverse(child => {
+                        if (child.isMesh) child.material.color.setHex(data.color);
+                    });
+                    brick.userData.color = data.color;
                 }
             }
         });
