@@ -336,6 +336,10 @@ class LegoGame {
     }
 
     updateGhostBrick() {
+        if (this.isFacilitator) {
+            if (this.ghostBrick) this.ghostBrick.visible = false;
+            return;
+        }
         // Toggle visibility based on state
         const inSpecialMode = (this.importGhost !== null || this.selectionState !== 'none');
         
@@ -971,6 +975,7 @@ class LegoGame {
     }
 
     onMouseClick(e) {
+        if (this.isFacilitator) return;
         if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
             if (!this.canPerform('BUILDER')) return;
         }
@@ -1637,6 +1642,16 @@ class LegoGame {
                 window.location.reload();
             }
         };
+
+        document.getElementById('fac-spectate-back').onclick = () => {
+            this.overcookedRoomId = null;
+            if (this.bricksRef) off(this.bricksRef);
+            this.showScreen('facilitator-dashboard');
+            // Hide the spectator back button when not spectating
+            document.getElementById('fac-spectate-back').classList.add('hidden');
+            // Ensure sidebar stays hidden for facilitators
+            document.getElementById('sidebar').classList.add('hidden');
+        };
     }
 
     spectateRoom(roomId) {
@@ -1648,10 +1663,13 @@ class LegoGame {
         document.getElementById('ui-container').classList.remove('hidden');
         
         document.getElementById('room-code-display').innerText = `Spectating: ${roomId.substring(0, 6)}`;
+        if (this.ghostBrick) this.ghostBrick.visible = false;
         
         // Hide normal build tools
-        document.querySelectorAll('.tool-btn:not(#exit-world-btn)').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
+        document.getElementById('fac-spectate-back').classList.remove('hidden');
         document.getElementById('inventory-panel').classList.add('hidden');
+        document.getElementById('sidebar').classList.add('hidden');
         document.getElementById('camera-btn').classList.remove('hidden'); // allow screenshots
         
         // Detach previous listeners
@@ -1995,6 +2013,7 @@ class LegoGame {
     }
 
     canPerform(roleRequired) {
+        if (this.isFacilitator) return false;
         if (this.gameMode !== 'overcooked' || this.gameState !== 'ROUND_2_BUILD') return true;
         if (this.currentRole === roleRequired) return true;
         
