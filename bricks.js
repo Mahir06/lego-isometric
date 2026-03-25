@@ -39,7 +39,12 @@ export function createBrick(type, color, opacity = 1.0) {
         for (let i = 0; i < holeCount; i++) {
             const holeOffset = -(width * UNIT) / 2 + UNIT / 2 + i * UNIT;
             const holeGeom = new THREE.CylinderGeometry(0.2, 0.2, depth * UNIT + 0.02, 16);
-            const holeMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            const holeMat = new THREE.MeshPhongMaterial({ 
+                color: 0x111111,
+                transparent: opacity < 1.0,
+                opacity: opacity,
+                depthWrite: opacity === 1.0
+            });
             const hole = new THREE.Mesh(holeGeom, holeMat);
             hole.rotateX(Math.PI / 2);
             hole.position.set(holeOffset, 0, 0);
@@ -90,7 +95,12 @@ export function createBrick(type, color, opacity = 1.0) {
     // Border for "LEGO" look
     if (type.shape !== 'cylinder') {
         const edges = new THREE.EdgesGeometry(body.geometry);
-        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.1 }));
+        const edgeOpacity = opacity < 1.0 ? 0.05 : 0.1;
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
+            color: 0x000000, 
+            transparent: true, 
+            opacity: edgeOpacity 
+        }));
         body.add(line);
     }
 
