@@ -16,9 +16,9 @@ class LegoGame {
         this.playerListEl = document.getElementById('player-list');
         this.uiContainer = document.getElementById('ui-container');
         
-        // Player Identity — persistent across sessions
-        this.playerId = localStorage.getItem('lego_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
-        localStorage.setItem('lego_player_id', this.playerId);
+        // Player Identity — unique per tab session to allow multi-tab testing
+        this.playerId = sessionStorage.getItem('lego_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
+        sessionStorage.setItem('lego_player_id', this.playerId);
         this.playerName = localStorage.getItem('lego_player_name') || '';
         this.highlightedPlayerId = null;
         
