@@ -75,6 +75,14 @@ class LegoGame {
         this.hudEl = document.getElementById('overcooked-hud');
         this.modalEl = document.getElementById('modal-overlay');
         
+        // REFERENCE VIEW (Secondary Scene)
+        this.referencePanel = document.getElementById('reference-panel');
+        this.refContainer = document.getElementById('reference-canvas-container');
+        this.timerExpired = false;
+        
+        document.getElementById('close-reference-btn').onclick = () => this.toggleReferenceView(false);
+        this.initReferenceView();
+        
         this.animate();
         window.addEventListener('resize', () => this.onWindowResize());
     }
@@ -169,6 +177,7 @@ class LegoGame {
         const CLICK_THRESHOLD = 5;
 
         this.container.addEventListener('mousedown', (e) => {
+            if (this.gameMode === 'overcooked' && this.timerExpired) return;
             this.mouseDownPos.set(e.clientX, e.clientY);
             this.isDragging = false;
             
@@ -214,6 +223,7 @@ class LegoGame {
         });
 
         this.container.addEventListener('mouseup', (e) => {
+            if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (this.selectionState === 'selecting') {
                 this.selectionState = 'selection-ready';
                 this.controls.enabled = true;
@@ -234,6 +244,7 @@ class LegoGame {
         this.container.addEventListener('contextmenu', (e) => e.preventDefault());
 
         window.addEventListener('keydown', (e) => {
+            if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (e.key.toLowerCase() === 'r') {
                 if (this.importGhost) {
                     this.importGhost.rotation.y += Math.PI / 2;
@@ -1012,6 +1023,7 @@ class LegoGame {
                 item.className = 'brick-item';
                 item.innerText = type.id;
                 item.onclick = () => {
+                    if (this.gameMode === 'overcooked' && this.timerExpired) return;
                     this.currentBrickType = type;
                     document.querySelectorAll('.brick-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
@@ -1056,6 +1068,7 @@ class LegoGame {
         document.getElementById('export-btn').onclick = () => this.exportArea();
         document.getElementById('import-btn').onclick = () => this.triggerImport();
         document.getElementById('undo-btn').onclick = (e) => {
+            if (this.gameMode === 'overcooked' && this.timerExpired) return;
             e.stopPropagation();
             const brick = this.bricks[this.bricks.length - 1];
             if (brick) {
@@ -1067,6 +1080,7 @@ class LegoGame {
             }
         };
         document.getElementById('clear-btn').onclick = (e) => {
+            if (this.gameMode === 'overcooked' && this.timerExpired) return;
             e.stopPropagation();
             if (confirm('Are you sure you want to clear EVERYTHING?')) {
                 if (this.bricksRef) {
@@ -1317,7 +1331,107 @@ class LegoGame {
         requestAnimationFrame(() => this.animate());
         if (this.controls) this.controls.update();
         this.renderer.render(this.scene, this.camera);
+        
+        // Render secondary reference scene if visible
+        if (this.refRenderer && !this.referencePanel.classList.contains('hidden')) {
+            this.refRenderer.render(this.refScene, this.refCamera);
+        }
     }
+
+    // ─── REFERENCE VIEW METHODS ──────────────────────────────────────────────
+    initReferenceView() {
+        this.refScene = new THREE.Scene();
+        this.refScene.background = new THREE.Color(0xf0faff);
+
+        const aspect = this.refContainer.clientWidth / this.refContainer.clientHeight;
+        const d = 8;
+        this.refCamera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.refCamera.position.set(15, 15, 15);
+        this.refCamera.lookAt(0, 0, 0);
+
+        this.refRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.refRenderer.setSize(this.refContainer.clientWidth, this.refContainer.clientHeight);
+        this.refRenderer.shadowMap.enabled = true;
+        this.refContainer.appendChild(this.refRenderer.domElement);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        this.refScene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(10, 20, 10);
+        this.refScene.add(sun);
+
+        this.refControls = new OrbitControls(this.refCamera, this.refRenderer.domElement);
+        this.refControls.enableDamping = true;
+        
+        // Handle resize if container changes
+        const resizeObserver = new ResizeObserver(() => {
+            if (this.refRenderer && this.refContainer.clientWidth > 0) {
+                const aspect = this.refContainer.clientWidth / this.refContainer.clientHeight;
+                this.refCamera.left = -d * aspect;
+                this.refCamera.right = d * aspect;
+                this.refCamera.updateProjectionMatrix();
+                this.refRenderer.setSize(this.refContainer.clientWidth, this.refContainer.clientHeight);
+            }
+        });
+        resizeObserver.observe(this.refContainer);
+    }
+
+    updateReferenceView(brickList) {
+        if (!this.refScene) return;
+        
+        // Clear previous bricks
+        const toRemove = [];
+        this.refScene.traverse(child => {
+            if (child.userData && child.userData.isRefBrick) toRemove.push(child);
+        });
+        toRemove.forEach(b => this.refScene.remove(b));
+
+        if (!brickList) return;
+
+        const group = new THREE.Group();
+        const box = new THREE.Box3();
+
+        brickList.forEach(data => {
+            const type = BRICK_TYPES.find(t => t.id === data.typeId);
+            if (!type) return;
+            const brick = createBrick(type, data.color, 1.0);
+            brick.position.set(data.x, data.y, data.z);
+            brick.rotation.y = data.ry;
+            brick.userData.isRefBrick = true;
+            group.add(brick);
+            box.expandByObject(brick);
+        });
+
+        // Center the group in the ref view
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        group.children.forEach(child => child.position.sub(center));
+        
+        this.refScene.add(group);
+        
+        // Reset controls
+        this.refControls.reset();
+        this.refCamera.position.set(12, 12, 12);
+        this.refCamera.lookAt(0, 0, 0);
+    }
+
+    toggleReferenceView(show) {
+        if (show) {
+            this.referencePanel.classList.remove('hidden');
+            // Force a resize check since it was hidden
+            setTimeout(() => {
+                const aspect = this.refContainer.clientWidth / this.refContainer.clientHeight;
+                const d = 8;
+                this.refCamera.left = -d * aspect;
+                this.refCamera.right = d * aspect;
+                this.refCamera.updateProjectionMatrix();
+                this.refRenderer.setSize(this.refContainer.clientWidth, this.refContainer.clientHeight);
+            }, 10);
+        } else {
+            this.referencePanel.classList.add('hidden');
+        }
+    }
+
     // ═══════════════════════════════════
     // OVERCOOKED MODE LOGIC
     // ═══════════════════════════════════
@@ -1428,6 +1542,8 @@ class LegoGame {
 
     enterOvercookedRoom(roomId) {
         this.overcookedRoomId = roomId;
+        this.timerExpired = false;
+        this.toggleReferenceView(false);
         this.showScreen('overcooked-room');
         document.getElementById('overcooked-room-title').innerText = 'Room: ' + roomId.substring(0, 6);
 
@@ -1510,6 +1626,8 @@ class LegoGame {
 
     beginOvercookedSession() {
         this.gameState = 'ROUND_1_BUILD';
+        this.timerExpired = false;
+        this.toggleReferenceView(false);
         this.overcookedRoomEl.classList.add('hidden');
         this.landingScreen.classList.add('hidden');
         this.uiContainer.classList.remove('hidden');
@@ -1537,6 +1655,7 @@ class LegoGame {
 
     startTimer(seconds, callback) {
         if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerExpired = false;
         let timeLeft = seconds;
         const fill = document.getElementById('timer-progress-fill');
         const text = document.getElementById('timer-text');
@@ -1550,6 +1669,7 @@ class LegoGame {
             
             if (timeLeft <= 0) {
                 clearInterval(this.timerInterval);
+                this.timerExpired = true; // LOCK INPUT
                 callback();
             }
         }, 1000);
@@ -1634,6 +1754,13 @@ class LegoGame {
         this.gameState = 'ROUND_2_BUILD';
         this.modalEl.classList.add('hidden');
         
+        // Clear the current building area for the new round
+        // Since all players in the room will execute this, it's redundant but safe 
+        // to call remove() multiple times. This triggers onChildRemoved for all clients.
+        if (this.bricksRef) {
+            remove(this.bricksRef);
+        }
+        
         // Structure Swap: Fetch the paired room's snapshot
         const snapshot = await get(ref(db, `overcooked/rooms/${otherRoomId}/snapshot`));
         const assignedStructure = snapshot.val();
@@ -1645,6 +1772,10 @@ class LegoGame {
         
         // Show assigned structure as reference (ghost)
         this.createImportGhost(assignedStructure);
+        
+        // Populate the floating reference view
+        this.updateReferenceView(assignedStructure);
+        this.toggleReferenceView(true);
         
         this.showModal('Round 2', 'Recreate the assigned structure! Each player has a restricted role. Coordinate well.', '🔥');
         this.startTimer(600, () => this.endGame());
