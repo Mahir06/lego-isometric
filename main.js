@@ -1818,7 +1818,8 @@ class LegoGame {
         }
         
         const roomPath = `rooms/${world}_${roomId}/bricks`;
-        console.log(`[Facilitator] Spectating room: ${roomId} — Firebase path: ${roomPath}`);
+        document.getElementById('room-code-display').innerText = `Spectating: ${world}_${roomId}`;
+        console.log(`[Facilitator] Start spectating: ${roomPath}`);
         this.bricksRef = ref(db, roomPath);
         
         // Use onValue for a full atomic sync — rebuilds the scene whenever Firebase data changes
@@ -1845,6 +1846,9 @@ class LegoGame {
             });
             
             console.log(`[Spectator] Synced ${this.bricks.length} bricks for ${roomId}`);
+        }, (error) => {
+            console.error('[Spectator] Sync error:', error);
+            alert(`Spectator Sync Error: ${error.message}\nPath: ${roomPath}`);
         });
 
         // Override exit button
