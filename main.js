@@ -613,6 +613,11 @@ class LegoGame {
 
         // ── Global Back button ───────────────────────────────────────────────
         backBtn.onclick = () => {
+            // Explicitly remove from room if going back from a specific room
+            if (this._currentScreen === 'overcooked-room' && this.overcookedRoomId) {
+                if (db) remove(ref(db, `overcooked/rooms/${this.overcookedRoomId}/players/${this.playerId}`));
+            }
+
             switch (this._currentScreen) {
                 case 'step2':           this.showScreen('step1'); break;
                 case 'overcooked-lobby':
@@ -632,7 +637,11 @@ class LegoGame {
         if (exitWorldBtn) {
             exitWorldBtn.onclick = () => {
                 if (confirm('Exit this world and return to the main screen?')) {
-                    // Reload the page to fully reset state
+                    // Explicitly remove from overcooked room if in one
+                    if (this.overcookedRoomId && db) {
+                        remove(ref(db, `overcooked/rooms/${this.overcookedRoomId}/players/${this.playerId}`));
+                    }
+                    // Reload for a clean state
                     window.location.reload();
                 }
             };
