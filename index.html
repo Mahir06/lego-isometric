@@ -121,38 +121,55 @@
         </div>
 
         <!-- FACILITATOR DASHBOARD -->
-        <div class="landing-content hidden" id="landing-facilitator-dashboard">
+        <div class="landing-content hidden facilitator-dashboard-container" id="landing-facilitator-dashboard">
             <div class="modal-header">
-                <h1 id="facilitator-world-title">Mission Control</h1>
-                <p>Manage World Settings & Spectate</p>
+                <h1 id="facilitator-world-title" style="margin-bottom: 5px;">Mission Control</h1>
+                <p style="color: #666; font-weight: 600;">System Administrator Oversight</p>
             </div>
-            <div class="modal-body facilitator-layout" style="display:flex; gap:20px; text-align:left;">
-                <!-- Settings Panel -->
-                <div class="fac-settings-panel" style="flex:1; background:rgba(0,0,0,0.2); padding:15px; border-radius:12px;">
-                    <h3 style="margin-bottom:15px; color:#fff;">Game Settings</h3>
-                    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom: 20px;">
-                        <label style="color:#aaa; display:flex; justify-content:space-between; align-items:center;">R1 Time (s): <input type="number" id="fac-r1-time" value="180" class="room-input" style="width:80px; padding:5px;"></label>
-                        <label style="color:#aaa; display:flex; justify-content:space-between; align-items:center;">R2 Time (s): <input type="number" id="fac-r2-time" value="600" class="room-input" style="width:80px; padding:5px;"></label>
-                        <label style="color:#aaa; display:flex; justify-content:space-between; align-items:center;">Min Players: <input type="number" id="fac-min-players" value="3" class="room-input" style="width:80px; padding:5px;"></label>
-                        <button id="fac-save-settings" class="secondary-btn" style="padding:8px;">Save Settings</button>
+            
+            <div class="modal-body fac-layout">
+                <!-- Sidebar: Controls & Settings -->
+                <aside class="fac-sidebar">
+                    <section>
+                        <h3 class="fac-section-title">Game Parameters</h3>
+                        <div class="fac-setting-row">
+                            <label>Round 1 (s)</label>
+                            <input type="number" id="fac-r1-time" value="180">
+                        </div>
+                        <div class="fac-setting-row">
+                            <label>Round 2 (s)</label>
+                            <input type="number" id="fac-r2-time" value="600">
+                        </div>
+                        <div class="fac-setting-row">
+                            <label>Min Players</label>
+                            <input type="number" id="fac-min-players" value="3">
+                        </div>
+                        <button id="fac-save-settings" class="secondary-btn" style="width: 100%; margin-top: 10px; padding: 10px;">Apply Settings</button>
+                    </section>
+
+                    <hr style="border: none; border-top: 2px solid #eef2f8;">
+
+                    <section>
+                        <h3 class="fac-section-title">Manual Overrides</h3>
+                        <button id="fac-force-r1" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px;">Start Round 1</button>
+                        <button id="fac-force-r2" class="primary-btn" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000; font-size: 0.85rem; padding: 12px;">Trigger Round 2 Swap</button>
+                    </section>
+                </aside>
+
+                <!-- Main Panel: Live Room Feed -->
+                <main class="fac-main-panel">
+                    <h3 class="fac-section-title">Live Active Rooms</h3>
+                    <div id="fac-room-list">
+                        <!-- Populated dynamically with fac-room-card-premium -->
+                        <div style="text-align: center; color: #aaa; margin-top: 50px;">
+                            <p>No active rooms detected in this world.</p>
+                        </div>
                     </div>
-                    
-                    <hr style="margin: 20px 0; border: 1px solid rgba(255,255,255,0.1);">
-                    <h3 style="margin-bottom:15px; color:#fff;">Manual Controls</h3>
-                    <button id="fac-force-r1" class="primary-btn tooltip" style="width:100%; margin-bottom: 15px;" title="Forces all WAITING rooms into Round 1">Force Start Round 1</button>
-                    <button id="fac-force-r2" class="primary-btn tooltip" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000;" title="Forces all Round 1 rooms to swap and start Round 2">Force Round 2 Swap</button>
-                </div>
-                
-                <!-- Room Spectator List -->
-                <div class="fac-rooms-panel" style="flex:1.5; background:rgba(0,0,0,0.2); padding:15px; border-radius:12px; overflow-y:auto; max-height:400px;">
-                    <h3 style="margin-bottom:15px; color:#fff;">Active Rooms</h3>
-                    <div id="fac-room-list" class="room-grid" style="grid-template-columns: 1fr;">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
+                </main>
             </div>
-            <div class="modal-footer">
-                <button id="fac-exit" class="secondary-btn">Exit Mission Control</button>
+
+            <div class="modal-footer" style="padding: 15px 36px;">
+                <button id="fac-exit" class="secondary-btn">Disconnect from World</button>
             </div>
         </div>
     </div>

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createBrick, BRICK_TYPES, BRICK_COLORS } from './bricks.js';
 import { db } from './firebase-config.js';
-import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction } from 'firebase/database';
+import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction, off } from 'firebase/database';
 
 class LegoGame {
     constructor() {
@@ -1582,23 +1582,27 @@ class LegoGame {
                 if (rooms) {
                     Object.values(rooms).forEach(room => {
                         const card = document.createElement('div');
-                        const colorClass = room.name.toLowerCase().includes('yellow') ? 'room-yellow' : 
-                                         room.name.toLowerCase().includes('green') ? 'room-green' :
-                                         room.name.toLowerCase().includes('blue') ? 'room-blue' : 'room-red';
+                        card.className = 'fac-room-card-premium';
                         
-                        card.className = `room-card ${colorClass}`;
+                        const statusClass = room.status.includes('WAITING') ? 'status-waiting' : 
+                                          room.status.includes('BUILD') ? 'status-build' : 'status-complete';
+                        
                         const count = room.players ? Object.keys(room.players).length : 0;
                         
                         card.innerHTML = `
-                            <div class="room-icon">🏠</div>
-                            <div class="room-name">${room.name}</div>
-                            <div class="room-count">Status: ${room.status} | ${count} Players</div>
-                            <p style="font-size: 0.8rem; margin: 5px 0 0; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.5); padding: 4px; border-radius: 4px; text-align:center;">Click to Spectate</p>
+                            <div class="room-status-dot ${statusClass}"></div>
+                            <div class="fac-room-info">
+                                <h4>${room.name}</h4>
+                                <p>Status: ${room.status.replace(/_/g, ' ')}</p>
+                            </div>
+                            <div class="fac-room-players">${count}/6 Players</div>
                         `;
                         
                         card.onclick = () => this.spectateRoom(room.id);
                         listEl.appendChild(card);
                     });
+                } else {
+                    listEl.innerHTML = '<div style="text-align: center; color: #aaa; margin-top: 50px;"><p>No active rooms detected.</p></div>';
                 }
             });
         }
