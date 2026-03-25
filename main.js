@@ -16,6 +16,7 @@ class LegoGame {
         this.playerListEl = document.getElementById('player-list');
         this.uiContainer = document.getElementById('ui-container');
         
+        window.antigravity = this; // Expose for HTML inline handlers
         // Player Identity — unique per tab session to allow multi-tab testing
         this.playerId = sessionStorage.getItem('lego_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
         sessionStorage.setItem('lego_player_id', this.playerId);
@@ -1801,8 +1802,15 @@ class LegoGame {
         // Detach previous listeners
         if (this.bricksRef) off(this.bricksRef);
         
-        // Bind to the specific room's bricks
-        this.bricksRef = ref(db, `rooms/${this.worldCode}_${roomId}/bricks`);
+        // Bind to the specific room's bricks (Players are in [worldCode]_[roomId])
+        const world = this.worldCode;
+        if (!world) {
+            console.error('[Facilitator] No worldCode found for spectator sync!');
+            return;
+        }
+        
+        console.log(`[Facilitator] Spectating room: ${roomId} in world: ${world}`);
+        this.bricksRef = ref(db, `rooms/${world}_${roomId}/bricks`);
         this.bricks.forEach(b => this.scene.remove(b));
         this.bricks = [];
         
@@ -2058,7 +2066,7 @@ class LegoGame {
             }
         });
 
-        document.getElementById('close-reference-btn').onclick = () => {
+        document.getElementById('close-target-preview-btn').onclick = () => {
             this.refModalEl.classList.add('hidden');
         };
     }
@@ -2110,6 +2118,21 @@ class LegoGame {
                 callback();
             }
         }, 1000);
+    }
+
+    setRoomPair(roomId, targetRoomId) {
+        if (!this.worldCode || !db) return;
+        
+        if (!targetRoomId) {
+            // Unpair (optional but good practice)
+            set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${roomId}/pairedWith`), null);
+            return;
+        }
+        
+        console.log(`[Facilitator] Manually pairing ${roomId} with ${targetRoomId}`);
+        // Mutual pairing to ensure both rooms are linked
+        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${roomId}/pairedWith`), targetRoomId);
+        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${targetRoomId}/pairedWith`), roomId);
     }
 
     endRound1() {
