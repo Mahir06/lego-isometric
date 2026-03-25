@@ -873,7 +873,6 @@ class LegoGame {
     enterRoom(code) {
         console.log('Entering Room:', code);
         this.roomCode = code;
-                        this.worldCode = code;
         if (this.roomCodeDisplay) this.roomCodeDisplay.innerText = code;
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
