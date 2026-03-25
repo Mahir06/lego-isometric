@@ -1044,3 +1044,9 @@ header {
     padding: 4px 10px;
     border-radius: 20px;
 }
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 4px 0 #1480b3; }
+    50% { transform: scale(1.02); box-shadow: 0 4px 15px rgba(28, 176, 246, 0.4); }
+    100% { transform: scale(1); box-shadow: 0 4px 0 #1480b3; }
+}

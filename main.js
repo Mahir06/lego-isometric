@@ -73,11 +73,17 @@ class LegoGame {
         this.roomGridEl = document.getElementById('overcooked-room-grid');
         this.readyListEl = document.getElementById('overcooked-ready-list');
         this.hudEl = document.getElementById('overcooked-hud');
-        this.modalEl = document.getElementById('modal-overlay');
+        this.modalEl = document.getElementById('instruction-modal');
+        this.refModalEl = document.getElementById('reference-modal');
+        this.refContainer = document.getElementById('ref-canvas-container');
+        this.refRenderer = null;
+        this.refScene = null;
+        this.refCamera = null;
+        this.refControls = null;
+        this.refBricks = [];
         
         // REFERENCE VIEW (Secondary Scene)
         this.referencePanel = document.getElementById('reference-panel');
-        this.refContainer = document.getElementById('reference-canvas-container');
         this.timerExpired = false;
         
         document.getElementById('close-reference-btn').onclick = () => this.toggleReferenceView(false);
@@ -246,6 +252,10 @@ class LegoGame {
         window.addEventListener('keydown', (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (e.key.toLowerCase() === 'r') {
+                if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
+                    if (!this.canPerform('ROTATOR')) return;
+                }
+                
                 if (this.importGhost) {
                     this.importGhost.rotation.y += Math.PI / 2;
                 } else if (this.currentBrickType && this.currentBrickType.shape === 'rod') {
@@ -257,13 +267,11 @@ class LegoGame {
                     this.updateGhostBrick();
                 }
             }
-            if (e.key.toLowerCase() === 'r' && this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
-                if (!this.canPerform('ROTATOR')) {
-                    e.stopImmediatePropagation();
-                    return;
-                }
-            }
             if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
+                    if (!this.canPerform('REMOVER')) return;
+                }
+                
                 if (this.importGhost) {
                     this.cancelImport();
                 } else {
@@ -311,6 +319,10 @@ class LegoGame {
 
                 const moveForward = getClosestAxis(forward);
                 const moveRight = getClosestAxis(right);
+
+                if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
+                    if (!this.canPerform('BUILDER')) return;
+                }
 
                 if (e.key === 'ArrowUp') this.arrowOffset.add(moveForward);
                 if (e.key === 'ArrowDown') this.arrowOffset.sub(moveForward);
@@ -1065,6 +1077,9 @@ class LegoGame {
                 item.className = 'brick-item';
                 item.innerText = type.id;
                 item.onclick = () => {
+                    if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
+                        if (!this.canPerform('BUILDER')) return;
+                    }
                     if (this.gameMode === 'overcooked' && this.timerExpired) return;
                     this.currentBrickType = type;
                     document.querySelectorAll('.brick-item').forEach(el => el.classList.remove('active'));
@@ -1095,9 +1110,7 @@ class LegoGame {
             if (color.opacity < 1) swatch.style.opacity = color.opacity;
             item.appendChild(swatch);
             item.onclick = () => {
-                if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
-                    if (!this.canPerform('COLOR_PICKER')) return;
-                }
+                if (!this.canPerform('COLOR_PICKER')) return;
                 this.currentBrickColor = color.hex;
                 document.querySelectorAll('.color-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
@@ -1111,6 +1124,7 @@ class LegoGame {
         document.getElementById('import-btn').onclick = () => this.triggerImport();
         document.getElementById('undo-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
+            if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             const brick = this.bricks[this.bricks.length - 1];
             if (brick) {
@@ -1123,6 +1137,7 @@ class LegoGame {
         };
         document.getElementById('clear-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
+            if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             if (confirm('Are you sure you want to clear EVERYTHING?')) {
                 if (this.bricksRef) {
@@ -1578,24 +1593,46 @@ class LegoGame {
             onValue(roomsRef, (snapshot) => {
                 const rooms = snapshot.val();
                 const listEl = document.getElementById('fac-room-list');
+                const startR1Btn = document.getElementById('fac-force-r1');
+                const startR2Btn = document.getElementById('fac-start-r2');
+                
                 listEl.innerHTML = '';
+                let anyWaiting = false;
+                let anyFinishedR1 = false;
+                let anyBuilding = false;
+
                 if (rooms) {
                     Object.values(rooms).forEach(room => {
                         const card = document.createElement('div');
                         card.className = 'fac-room-card-premium';
                         
-                        const statusClass = room.status.includes('WAITING') ? 'status-waiting' : 
-                                          room.status.includes('BUILD') ? 'status-build' : 'status-complete';
+                        let statusText = room.status.replace(/_/g, ' ');
+                        let statusClass = 'status-waiting';
                         
-                        const count = room.players ? Object.keys(room.players).length : 0;
+                        if (room.status === 'WAITING') {
+                            anyWaiting = true;
+                        } else if (room.status.includes('BUILD')) {
+                            statusClass = 'status-build';
+                            anyBuilding = true;
+                        } else if (room.status === 'ROUND_1_COMPLETE') {
+                            statusClass = 'status-complete';
+                            statusText = 'READY FOR ROUND 2';
+                            anyFinishedR1 = true;
+                        } else if (room.status === 'GAME_COMPLETE') {
+                            statusClass = 'status-complete';
+                        }
+                        
+                        const players = room.players ? Object.values(room.players) : [];
+                        const playerNames = players.map(p => p.name).join(', ') || 'No players yet';
                         
                         card.innerHTML = `
                             <div class="room-status-dot ${statusClass}"></div>
                             <div class="fac-room-info">
                                 <h4>${room.name}</h4>
-                                <p>Status: ${room.status.replace(/_/g, ' ')}</p>
+                                <p>Status: <span style="font-weight:700; color: ${statusClass === 'status-build' ? '#1cb0f6' : '#666'}">${statusText}</span></p>
+                                <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">👤 ${playerNames}</p>
                             </div>
-                            <div class="fac-room-players">${count}/6 Players</div>
+                            <div class="fac-room-players">${players.length}/6 Players</div>
                         `;
                         
                         card.onclick = () => this.spectateRoom(room.id);
@@ -1603,6 +1640,25 @@ class LegoGame {
                     });
                 } else {
                     listEl.innerHTML = '<div style="text-align: center; color: #aaa; margin-top: 50px;"><p>No active rooms detected.</p></div>';
+                }
+
+                // Update Button States
+                if (anyBuilding) {
+                    startR1Btn.innerText = 'Round 1 Active';
+                    startR1Btn.style.opacity = '0.6';
+                    startR1Btn.disabled = true;
+                } else if (anyWaiting) {
+                    startR1Btn.innerText = 'Start Round 1';
+                    startR1Btn.style.opacity = '1';
+                    startR1Btn.disabled = false;
+                }
+
+                if (anyFinishedR1) {
+                    startR2Btn.style.animation = 'pulse 2s infinite';
+                    startR2Btn.disabled = false;
+                } else {
+                    startR2Btn.style.animation = 'none';
+                    startR2Btn.disabled = true;
                 }
             });
         }
@@ -1621,7 +1677,7 @@ class LegoGame {
         };
 
         document.getElementById('fac-force-r2').onclick = async () => {
-            if (!confirm('Force swap and start Round 2? This pairs remaining Round 1 rooms.')) return;
+            if (!confirm('Force swap and start Round 2? This pairs remaining Round 1 rooms and starts immediately.')) return;
             const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms`));
             const rooms = snapshot.val();
             if (rooms) {
@@ -1633,9 +1689,36 @@ class LegoGame {
                     if (rA && rB) {
                         set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/pairedWith`), rB.id);
                         set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/pairedWith`), rA.id);
-                        // The listeners in waitForPair / initiateMatching will handle the actual transition
+                        // Force update status to trigger Round 2 jump
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/status`), 'ROUND_2_BUILD');
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/status`), 'ROUND_2_BUILD');
                     } else if (rA) {
                         alert(`Warning: Odd number of teams. ${rA.name} has no pair!`);
+                    }
+                }
+            }
+        };
+
+        document.getElementById('fac-start-r2').onclick = async () => {
+            if (!confirm('Pair teams and start Round 2? Only teams that have finished Round 1 will be swapped.')) return;
+            const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms`));
+            const rooms = snapshot.val();
+            if (rooms) {
+                const finishedRooms = Object.values(rooms).filter(r => r.status === 'ROUND_1_COMPLETE');
+                if (finishedRooms.length < 2) {
+                    alert('Not enough teams have finished Round 1 yet.');
+                    return;
+                }
+                
+                for (let i = 0; i < finishedRooms.length; i += 2) {
+                    const rA = finishedRooms[i];
+                    const rB = finishedRooms[i + 1];
+                    if (rA && rB) {
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/pairedWith`), rB.id);
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/pairedWith`), rA.id);
+                        // The status change triggers the proceedToRound2 on client side
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rA.id}/status`), 'ROUND_2_BUILD');
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${rB.id}/status`), 'ROUND_2_BUILD');
                     }
                 }
             }
@@ -1704,6 +1787,22 @@ class LegoGame {
             };
             this.scene.add(brick);
             this.bricks.push(brick);
+        });
+
+        onChildChanged(this.bricksRef, (snapshot) => {
+            const data = snapshot.val();
+            const brick = this.bricks.find(b => b.userData.firebaseKey === snapshot.key);
+            if (brick) {
+                brick.position.set(data.x, data.y, data.z);
+                brick.rotation.y = data.ry;
+                if (brick.userData.color !== data.color) {
+                    const type = BRICK_TYPES.find(t => t.id === data.typeId);
+                    if (type) {
+                        brick.material.color.setHex(data.color);
+                        brick.userData.color = data.color;
+                    }
+                }
+            }
         });
 
         onChildRemoved(this.bricksRef, (snapshot) => {
@@ -1830,8 +1929,15 @@ class LegoGame {
         const roomStateRef = db ? ref(db, roomStatusPath) : null;
         if (roomStateRef) {
             onValue(roomStateRef, (snapshot) => {
-                if (snapshot.val() === 'ROUND_1_BUILD' && this.gameState === 'WAITING') {
+                const status = snapshot.val();
+                if (status === 'ROUND_1_BUILD' && this.gameState === 'WAITING') {
                     this.beginOvercookedSession();
+                } else if (status === 'ROUND_2_BUILD' && this.gameState === 'ROUND_1_COMPLETE') {
+                    // Fetch pairing info and proceed
+                    get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`)).then(snap => {
+                        const partnerId = snap.val();
+                        if (partnerId) this.proceedToRound2(partnerId);
+                    });
                 }
             });
         }
@@ -1871,6 +1977,84 @@ class LegoGame {
         document.getElementById('close-modal-btn').onclick = () => {
             this.modalEl.classList.add('hidden');
         };
+    }
+
+    initReferenceRenderer() {
+        if (this.refRenderer) return;
+        
+        this.refScene = new THREE.Scene();
+        this.refScene.background = new THREE.Color(0xf8f9fa);
+        
+        const aspect = this.refContainer.clientWidth / this.refContainer.clientHeight;
+        this.refCamera = new THREE.PerspectiveCamera(45, aspect, 1, 5000);
+        this.refCamera.position.set(200, 200, 200);
+        
+        this.refRenderer = new THREE.WebGLRenderer({ antialias: true });
+        this.refRenderer.setSize(this.refContainer.clientWidth, this.refContainer.clientHeight);
+        this.refRenderer.setPixelRatio(window.devicePixelRatio);
+        this.refContainer.appendChild(this.refRenderer.domElement);
+        
+        // OrbitControls for the modal (need to ensure THREE/OrbitControls is available)
+        // Since we are using a module, we can use the main one or just a simple orbit if needed.
+        // For now, I'll use the existing OrbitControls logic.
+        this.refControls = new OrbitControls(this.refCamera, this.refRenderer.domElement);
+        
+        // Add lights to ref scene
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.refScene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(100, 200, 100);
+        this.refScene.add(dirLight);
+
+        const animate = () => {
+            if (!this.refModalEl.classList.contains('hidden')) {
+                requestAnimationFrame(animate);
+                this.refControls.update();
+                this.refRenderer.render(this.refScene, this.refCamera);
+            }
+        };
+        animate();
+
+        window.addEventListener('resize', () => {
+            if (this.refRenderer) {
+                const w = this.refContainer.clientWidth;
+                const h = this.refContainer.clientHeight;
+                this.refCamera.aspect = w / h;
+                this.refCamera.updateProjectionMatrix();
+                this.refRenderer.setSize(w, h);
+            }
+        });
+
+        document.getElementById('close-reference-btn').onclick = () => {
+            this.refModalEl.classList.add('hidden');
+        };
+    }
+
+    showReferenceModal(structure) {
+        if (!structure) return;
+        this.initReferenceRenderer();
+        this.refModalEl.classList.remove('hidden');
+        
+        // Clear old bricks
+        this.refBricks.forEach(b => this.refScene.remove(b));
+        this.refBricks = [];
+        
+        // Add new bricks
+        structure.forEach(data => {
+            const type = BRICK_TYPES.find(t => t.id === data.typeId);
+            if (!type) return;
+            const brick = createBrick(type, data.color, 1.0);
+            brick.position.set(data.x, data.y, data.z);
+            brick.rotation.y = data.ry;
+            this.refScene.add(brick);
+            this.refBricks.push(brick);
+        });
+
+        // Center camera on structure
+        const box = new THREE.Box3().setFromObject(this.refScene);
+        const center = box.getCenter(new THREE.Vector3());
+        this.refControls.target.copy(center);
+        this.refControls.update();
     }
 
     startTimer(seconds, callback) {
@@ -1915,8 +2099,8 @@ class LegoGame {
         // Mark room as complete
         set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/status`), 'ROUND_1_COMPLETE');
         
-        // Initiate matching with other finished teams (Pair-Based)
-        this.initiateMatching();
+        // Show status to players
+        this.showModal('Round 1 Complete!', 'Waiting for the Facilitator to pair teams and start Round 2...', '⏳');
     }
 
     async initiateMatching() {
@@ -1982,19 +2166,30 @@ class LegoGame {
             remove(this.bricksRef);
         }
         
-        // Structure Swap: Fetch the paired room's snapshot
-        const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${otherRoomId}/snapshot`));
-        const assignedStructure = snapshot.val();
+        // Deterministic Role Assignment based on player list in THIS room
+        const roomSnapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}`));
+        const roomData = roomSnapshot.val();
+        const playerKeys = Object.keys(roomData.players || {}).sort();
+        const roleOrder = ['BUILDER', 'REMOVER', 'COLOR_PICKER', 'ROTATOR'];
         
-        // Assign Role
-        const roles = ['BUILDER', 'REMOVER', 'SELECTOR', 'COLOR_PICKER', 'ROTATOR'];
-        this.currentRole = roles[Math.floor(Math.random() * roles.length)];
+        const myIndex = playerKeys.indexOf(this.playerId);
+        if (myIndex === 0) this.currentRole = 'BUILDER';
+        else if (myIndex === 1) this.currentRole = 'REMOVER';
+        else if (myIndex === 2) this.currentRole = 'COLOR_PICKER';
+        else this.currentRole = 'ROTATOR';
+
         this.displayRole(this.currentRole);
         
-        // Show assigned structure as reference (ghost)
-        this.createImportGhost(assignedStructure);
+        // Structure Swap: Fetch the paired room's snapshot
+        const structureSnapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${otherRoomId}/snapshot`));
+        const assignedStructure = structureSnapshot.val();
+
+        // Wire up the "View Target" button to open the modal
+        document.getElementById('view-target-btn').onclick = () => {
+            this.showReferenceModal(assignedStructure);
+        };
         
-        // Populate the floating reference view
+        // Populate the floating reference view (mini-view on bottom right)
         this.updateReferenceView(assignedStructure);
         this.toggleReferenceView(true);
         
@@ -2007,13 +2202,35 @@ class LegoGame {
     displayRole(role) {
         const descriptions = {
             'BUILDER': 'Can only place blocks',
-            'REMOVER': 'Can only delete blocks',
-            'SELECTOR': 'Can only select objects',
-            'COLOR_PICKER': 'Can only change colors',
-            'ROTATOR': 'Can only rotate blocks'
+            'REMOVER': 'Can only delete blocks (Undo/Clear)',
+            'COLOR_PICKER': 'Can only change block colors',
+            'ROTATOR': 'Can only rotate blocks (Arrow Keys)'
         };
+        document.getElementById('role-card').classList.remove('hidden');
         document.getElementById('role-name').innerText = role;
         document.getElementById('role-desc').innerText = descriptions[role];
+        
+        // Tool Visibility logic
+        const inventory = document.getElementById('inventory-panel');
+        const sidebar = document.getElementById('sidebar');
+        const colorPicker = document.getElementById('color-picker-container'); 
+        
+        // Default: Enable nothing for players in Round 2 except their specific role
+        if (role === 'BUILDER') {
+            inventory.classList.remove('hidden');
+            sidebar.classList.add('hidden'); // No rotate/delete
+        } else if (role === 'REMOVER') {
+            inventory.classList.add('hidden');
+            sidebar.classList.remove('hidden');
+            // Hide specific sub-tools if possible, or just use canPerform
+        } else if (role === 'COLOR_PICKER') {
+            inventory.classList.add('hidden');
+            sidebar.classList.add('hidden');
+            if (colorPicker) colorPicker.classList.remove('hidden');
+        } else if (role === 'ROTATOR') {
+            inventory.classList.add('hidden');
+            sidebar.classList.remove('hidden');
+        }
     }
 
     endGame() {
@@ -2025,13 +2242,18 @@ class LegoGame {
     canPerform(roleRequired) {
         if (this.isFacilitator) return false;
         if (this.gameMode !== 'overcooked' || this.gameState !== 'ROUND_2_BUILD') return true;
-        if (this.currentRole === roleRequired) return true;
         
-        // Show brief warning on role card if wrong action
-        const card = document.getElementById('role-card');
-        card.style.background = '#ff4d4d';
-        setTimeout(() => card.style.background = '#1cb0f6', 500);
-        return false;
+        // Strict blocking
+        if (this.currentRole !== roleRequired) {
+            // Show brief warning on role card if wrong action
+            const card = document.getElementById('role-card');
+            if (card) {
+                card.style.background = '#ff4d4d';
+                setTimeout(() => card.style.background = '#1cb0f6', 500);
+            }
+            return false;
+        }
+        return true;
     }
 }
 

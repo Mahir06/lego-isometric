@@ -152,7 +152,8 @@
                     <section>
                         <h3 class="fac-section-title">Manual Overrides</h3>
                         <button id="fac-force-r1" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px;">Start Round 1</button>
-                        <button id="fac-force-r2" class="primary-btn" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000; font-size: 0.85rem; padding: 12px;">Trigger Round 2 Swap</button>
+                        <button id="fac-start-r2" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px; background:#1cb0f6; border-bottom:4px solid #1480b3;">Start Round 2</button>
+                        <button id="fac-force-r2" class="primary-btn" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000; font-size: 0.85rem; padding: 12px;">Force Round 2 Swap</button>
                     </section>
                 </aside>
 
@@ -265,10 +266,15 @@
                     <div id="timer-progress-fill"></div>
                 </div>
             </div>
-            <div id="role-card">
-                <div class="role-label">YOUR ROLE</div>
-                <div id="role-name">BUILDER</div>
-                <div id="role-desc">Can only place blocks</div>
+            <div id="role-card" class="hud-card hidden">
+                <div id="role-icon">👤</div>
+                <div class="role-details">
+                    <div id="role-name">BUILDER</div>
+                    <div id="role-desc">Can only place blocks</div>
+                </div>
+                <button id="view-target-btn" class="secondary-btn" style="margin-left: 15px; padding: 10px; font-size: 0.75rem; white-space: nowrap;">
+                    View Target Build
+                </button>
             </div>
         </div>
 
@@ -284,15 +290,32 @@
             </div>
         </div>
 
-        <!-- GAME MODALS -->
-        <div id="modal-overlay" class="hidden">
-            <div class="modal-content duolingo-style">
-                <div class="modal-icon" id="modal-icon">🍳</div>
-                <h2 id="modal-title">Round 1</h2>
-                <p id="modal-text">Create the most complex structure your team can build. Be as creative as possible.</p>
-                <button id="close-modal-btn" class="primary-btn">LET'S GO!</button>
+        <!-- MODAL: Round Instruction -->
+    <div id="instruction-modal" class="modal-overlay hidden">
+        <div class="modal-content glassmorphism" style="max-width: 450px; text-align: center; padding: 40px;">
+            <div id="modal-icon" style="font-size: 50px; margin-bottom: 20px;">🍳</div>
+            <h1 id="modal-title" style="margin-bottom: 15px; color: #1cb0f6;">Round 1</h1>
+            <p id="modal-text" style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px;">
+                Create the most complex structure your team can build.
+            </p>
+            <button id="close-modal-btn" class="primary-btn" style="width: 100%;">LET'S GO!</button>
+        </div>
+    </div>
+
+    <!-- MODAL: Reference Preview -->
+    <div id="reference-modal" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal-content glassmorphism" style="max-width: 800px; width: 90%; height: 80vh; display: flex; flex-direction: column; padding: 20px;">
+            <div class="modal-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #eef2f8; padding-bottom: 15px;">
+                <h2 style="margin: 0; color: #1cb0f6;">Target Build Preview</h2>
+                <button id="close-reference-btn" class="secondary-btn" style="padding: 5px 15px;">Close View</button>
+            </div>
+            <div id="ref-canvas-container" style="flex: 1; background: #f8f9fa; border-radius: 15px; overflow: hidden; position: relative;">
+                <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.5); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; pointer-events: none;">
+                    Drag to Orbit • Scroll to Zoom
+                </div>
             </div>
         </div>
+    </div>
     </div>
     <script type="module" src="main.js"></script>
 </body>
