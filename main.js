@@ -596,13 +596,20 @@ class LegoGame {
         const step2       = document.getElementById('landing-step-2');
         const lobbyEl     = this.overcookedLobbyEl;
         const roomEl      = this.overcookedRoomEl;
+        const facEl       = document.getElementById('landing-facilitator-dashboard');
         const backBtn     = document.getElementById('global-back-btn');
 
         // Hide all
-        [step1, step2, lobbyEl, roomEl].forEach(el => el && el.classList.add('hidden'));
+        [step1, step2, lobbyEl, roomEl, facEl].forEach(el => el && el.classList.add('hidden'));
 
         // Show requested
-        const map = { 'step1': step1, 'step2': step2, 'overcooked-lobby': lobbyEl, 'overcooked-room': roomEl };
+        const map = { 
+            'step1': step1, 
+            'step2': step2, 
+            'overcooked-lobby': lobbyEl, 
+            'overcooked-room': roomEl,
+            'facilitator-dashboard': facEl
+        };
         if (map[name]) map[name].classList.remove('hidden');
 
         // Show back button on every screen except step1
@@ -632,14 +639,18 @@ class LegoGame {
             switch (this._currentScreen) {
                 case 'step2':           this.showScreen('step1'); break;
                 case 'overcooked-lobby':
-                    // If creator — go back to mode select; if joiner — go to step1
                     if (this._pendingRoomCode && this._isWorldCreator) {
                         this.showScreen('step2');
                     } else {
                         this.showScreen('step1');
                     }
                     break;
-                case 'overcooked-room': this.showScreen('overcooked-lobby'); break;
+                case 'overcooked-room':  
+                    this.showScreen('overcooked-lobby');     
+                    break;
+                case 'facilitator-dashboard':
+                    this.showScreen('step1');
+                    break;
                 default:                this.showScreen('step1'); break;
             }
         };

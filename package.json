@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "firebase": "^12.10.0",
+    "jsdom": "^29.0.1",
     "three": "^0.183.1"
   },
   "devDependencies": {
