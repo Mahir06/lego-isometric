@@ -77,6 +77,9 @@ class LegoGame {
         this.modalEl = document.getElementById('instruction-modal');
         this.refModalEl = document.getElementById('reference-modal');
         this.refContainer = document.getElementById('ref-canvas-container');
+        document.getElementById('close-target-preview-btn').onclick = () => {
+            if (this.refModalEl) this.refModalEl.classList.add('hidden');
+        };
         this.refRenderer = null;
         this.refScene = null;
         this.refCamera = null;
@@ -405,13 +408,9 @@ class LegoGame {
                 if (this.ghostBrick) {
                     this.ghostBrick.traverse(child => {
                         if (child.isMesh) {
-                            if (!child.userData.originalMat) child.userData.originalMat = child.material;
-                            if (!child.userData.ghostMat) {
-                                child.userData.ghostMat = child.userData.originalMat.clone();
-                                child.userData.ghostMat.transparent = true;
-                                child.userData.ghostMat.opacity = 0.5;
-                            }
-                            child.material = child.userData.ghostMat;
+                            child.material.transparent = true;
+                            child.material.opacity = 0.5;
+                            child.material.depthWrite = false;
                             child.material.color.set(this.isPlacementValid ? this.currentBrickColor : 0xff0000);
                             child.material.needsUpdate = true;
                         }
@@ -446,7 +445,7 @@ class LegoGame {
                     // Initialize ghost if not already created
                     if (!this.ghostBrick || this.ghostBrick.userData.typeId !== this.currentBrickType.id) {
                         if (this.ghostBrick) this.scene.remove(this.ghostBrick);
-                        this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor);
+                        this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor, 0.5);
                         this.ghostBrick.userData.typeId = this.currentBrickType.id;
                         this.scene.add(this.ghostBrick);
                     }
@@ -469,8 +468,7 @@ class LegoGame {
 
                 if (!this.ghostBrick || this.ghostBrick.userData.typeId !== this.currentBrickType.id) {
                     if (this.ghostBrick) this.scene.remove(this.ghostBrick);
-                    const colorData = BRICK_COLORS.find(c => c.hex === this.currentBrickColor);
-                    this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor, colorData?.opacity || 1.0);
+                    this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor, 0.5);
                     this.ghostBrick.userData.typeId = this.currentBrickType.id;
                     this.scene.add(this.ghostBrick);
                 }
@@ -1120,6 +1118,13 @@ class LegoGame {
                 this.currentBrickColor = color.hex;
                 document.querySelectorAll('.color-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
+                
+                // Force ghost update immediately
+                if (this.ghostBrick) {
+                    this.scene.remove(this.ghostBrick);
+                    this.ghostBrick = null;
+                }
+                this.updateGhostBrick();
             };
             if (color.hex === this.currentBrickColor) item.classList.add('active');
             colorGrid.appendChild(item);
@@ -1792,6 +1797,9 @@ class LegoGame {
         document.getElementById('room-code-display').innerText = `Spectating: ${roomId}`;
         if (this.ghostBrick) this.ghostBrick.visible = false;
         
+        // Fix camera aspect ratio and renderer size after showing
+        setTimeout(() => this.onWindowResize(), 10);
+        
         // Hide normal build tools
         document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
         document.getElementById('fac-spectate-back').classList.remove('hidden');
@@ -1973,7 +1981,20 @@ class LegoGame {
                 const status = snapshot.val();
                 if (status === 'ROUND_1_BUILD' && this.gameState === 'WAITING') {
                     this.beginOvercookedSession();
-                } else if (status === 'ROUND_2_BUILD' && this.gameState === 'ROUND_1_COMPLETE') {
+                } else if (status === 'ROUND_2_BUILD' && this.gameState !== 'ROUND_2_BUILD') {
+                    // Always try to snapshot if we haven't (e.g. forced transition from ROUND_1_BUILD)
+                    if (this.gameState === 'ROUND_1_BUILD') {
+                        const structure = this.bricks.map(b => ({
+                            typeId: b.userData.typeId,
+                            color: b.userData.color,
+                            x: b.position.x,
+                            y: b.position.y,
+                            z: b.position.z,
+                            ry: b.rotation.y
+                        }));
+                        set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/snapshot`), structure);
+                    }
+                    
                     // Fetch pairing info and proceed
                     get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/pairedWith`)).then(snap => {
                         const partnerId = snap.val();
@@ -2047,17 +2068,8 @@ class LegoGame {
         dirLight.position.set(100, 200, 100);
         this.refScene.add(dirLight);
 
-        const animate = () => {
-            if (!this.refModalEl.classList.contains('hidden')) {
-                requestAnimationFrame(animate);
-                this.refControls.update();
-                this.refRenderer.render(this.refScene, this.refCamera);
-            }
-        };
-        animate();
-
         window.addEventListener('resize', () => {
-            if (this.refRenderer) {
+            if (this.refRenderer && !this.refModalEl.classList.contains('hidden')) {
                 const w = this.refContainer.clientWidth;
                 const h = this.refContainer.clientHeight;
                 this.refCamera.aspect = w / h;
@@ -2065,16 +2077,38 @@ class LegoGame {
                 this.refRenderer.setSize(w, h);
             }
         });
+    }
 
-        document.getElementById('close-target-preview-btn').onclick = () => {
-            this.refModalEl.classList.add('hidden');
+    startReferenceAnimation() {
+        if (this.isRefAnimating) return;
+        this.isRefAnimating = true;
+        const animate = () => {
+            if (this.refModalEl && !this.refModalEl.classList.contains('hidden')) {
+                requestAnimationFrame(animate);
+                if (this.refControls) this.refControls.update();
+                if (this.refRenderer) this.refRenderer.render(this.refScene, this.refCamera);
+            } else {
+                this.isRefAnimating = false;
+            }
         };
+        animate();
     }
 
     showReferenceModal(structure) {
         if (!structure) return;
         this.initReferenceRenderer();
         this.refModalEl.classList.remove('hidden');
+        
+        setTimeout(() => {
+            if (this.refRenderer) {
+                const w = this.refContainer.clientWidth;
+                const h = this.refContainer.clientHeight;
+                this.refCamera.aspect = w / h;
+                this.refCamera.updateProjectionMatrix();
+                this.refRenderer.setSize(w, h);
+            }
+            this.startReferenceAnimation();
+        }, 10);
         
         // Clear old bricks
         this.refBricks.forEach(b => this.refScene.remove(b));
