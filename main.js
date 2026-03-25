@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createBrick, BRICK_TYPES, BRICK_COLORS } from './bricks.js';
 import { db } from './firebase-config.js';
-import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect } from 'firebase/database';
+import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction } from 'firebase/database';
 
 class LegoGame {
     constructor() {
@@ -1249,7 +1249,7 @@ class LegoGame {
                 console.warn(`Skipping unknown brick type: ${data.typeId}`);
                 return;
             }
-            const brick = createBrick(type, data.color, 0.5);
+            const brick = createBrick(type, data.color, 0.4); // 0.4 opacity for ghost blocks
             brick.position.set(data.x, data.y, data.z);
             brick.rotation.y = data.ry;
             brick.userData.typeId = data.typeId;
@@ -1575,36 +1575,68 @@ class LegoGame {
         // Mark room as complete
         set(ref(db, `overcooked/rooms/${this.overcookedRoomId}/status`), 'ROUND_1_COMPLETE');
         
-        // Wait for global sync
-        this.waitForGlobalSync();
+        // Initiate matching with other finished teams (Pair-Based)
+        this.initiateMatching();
     }
 
-    waitForGlobalSync() {
-        this.showModal('Waiting for other teams...', 'All teams must finish their build before we proceed to Round 2.', '⏳');
+    async initiateMatching() {
+        this.showModal('Rounding Up Teams...', 'Waiting for another team to match for Round 2 swap.', '⏳');
         
-        const roomsRef = ref(db, 'overcooked/rooms');
-        onValue(roomsRef, (snapshot) => {
-            const rooms = snapshot.val();
-            if (rooms) {
-                const roomArr = Object.values(rooms);
-                const allFinished = roomArr.every(r => r.status === 'ROUND_1_COMPLETE' || r.status === 'ROUND_2_BUILD');
-                if (allFinished && this.gameState === 'ROUND_1_COMPLETE') {
-                    this.proceedToRound2();
+        const queueRef = ref(db, 'overcooked/matching_queue');
+        
+        // Use a transaction to pick a pair from the queue or join it
+        try {
+            const result = await runTransaction(queueRef, (currentData) => {
+                if (currentData === null) {
+                    // Queue is empty, I'm the first one waiting
+                    return this.overcookedRoomId;
+                } else if (currentData === this.overcookedRoomId) {
+                    // I'm already in the queue, stay there
+                    return currentData;
+                } else {
+                    // Someone else is waiting, take them and clear the queue
+                    return null;
+                }
+            });
+
+            if (result.committed) {
+                const waitingRoomId = result.snapshot.val();
+                if (waitingRoomId && waitingRoomId !== this.overcookedRoomId) {
+                    // I found a pair!
+                    console.log('Matched with team:', waitingRoomId);
+                    // Write the pair link to both rooms
+                    set(ref(db, `overcooked/rooms/${this.overcookedRoomId}/pairedWith`), waitingRoomId);
+                    set(ref(db, `overcooked/rooms/${waitingRoomId}/pairedWith`), this.overcookedRoomId);
+                    this.proceedToRound2(waitingRoomId);
+                } else {
+                    // I am the one waiting in the queue
+                    console.log('Waiting in queue for a partner...');
+                    this.waitForPair();
                 }
             }
-        });
+        } catch (err) {
+            console.error('Matching Error:', err);
+        }
     }
 
-    async proceedToRound2() {
+    waitForPair() {
+        const pairingRef = ref(db, `overcooked/rooms/${this.overcookedRoomId}/pairedWith`);
+        onValue(pairingRef, (snapshot) => {
+            const partnerId = snapshot.val();
+            if (partnerId && this.gameState === 'ROUND_1_COMPLETE') {
+                console.log('Partner found via listener:', partnerId);
+                this.proceedToRound2(partnerId);
+            }
+        }, { onlyOnce: false });
+    }
+
+    async proceedToRound2(otherRoomId) {
         this.gameState = 'ROUND_2_BUILD';
         this.modalEl.classList.add('hidden');
         
-        // Structure Shuffle
-        const snapshot = await get(ref(db, 'overcooked/rooms'));
-        const rooms = Object.keys(snapshot.val());
-        const myIndex = rooms.indexOf(this.overcookedRoomId);
-        const nextRoomId = rooms[(myIndex + 1) % rooms.length];
-        const assignedStructure = snapshot.val()[nextRoomId].snapshot;
+        // Structure Swap: Fetch the paired room's snapshot
+        const snapshot = await get(ref(db, `overcooked/rooms/${otherRoomId}/snapshot`));
+        const assignedStructure = snapshot.val();
         
         // Assign Role
         const roles = ['BUILDER', 'REMOVER', 'SELECTOR', 'COLOR_PICKER', 'ROTATOR'];
