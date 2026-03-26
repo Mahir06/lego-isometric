@@ -1911,9 +1911,13 @@ class LegoGame {
             this.overcookedRoomId = null;
             if (this.bricksRef) off(this.bricksRef);
             
+            // Hide diagnostic label
+            const diag = document.getElementById('spectator-diag');
+            if (diag) diag.classList.add('hidden');
+
             // Toggle top-level containers
             this.landingScreen.classList.remove('hidden');
-            this.uiContainer.classList.add('hidden');
+            document.getElementById('ui-container').classList.add('hidden');
             
             this.showScreen('facilitator-dashboard');
             
@@ -1950,6 +1954,17 @@ class LegoGame {
         const displayCode = world.includes('_') ? world : `${world}_${roomId}`;
         document.getElementById('room-code-display').innerText = `Spectating: ${displayCode}`;
 
+        // PATH DIAGNOSTIC LABEL: Create a temporary overlay to confirm path
+        let diag = document.getElementById('spectator-diag');
+        if (!diag) {
+            diag = document.createElement('div');
+            diag.id = 'spectator-diag';
+            diag.style.cssText = 'position:fixed; top:70px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#00ff00; padding:8px 15px; border-radius:20px; font-family:monospace; font-size:12px; z-index:9999; pointer-events:none;';
+            document.body.appendChild(diag);
+        }
+        diag.classList.remove('hidden');
+        diag.innerText = `DEBUG PATH: rooms/${displayCode}/bricks`;
+
         // Hide normal build tools
         document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
         document.getElementById('fac-spectate-back').classList.remove('hidden');
@@ -1974,20 +1989,31 @@ class LegoGame {
             
             if (!snapshot.exists()) {
                 console.log('[Spectator] No bricks found at path:', roomPath);
+                diag.style.color = '#ff4d4d';
+                diag.innerText = `DEBUG PATH: ${roomPath} (Empty)`;
                 return;
             }
             
+            diag.style.color = '#00ff00';
             const box = new THREE.Box3();
             let count = 0;
 
             snapshot.forEach((childSnap) => {
                 const data = childSnap.val();
                 const type = BRICK_TYPES.find(t => t.id === data.typeId);
-                if (!type) return;
+                if (!type) {
+                    console.warn('[Spectator] Unknown brick type:', data.typeId);
+                    return;
+                }
                 const brick = createBrick(type, data.color, data.opacity || 1.0);
                 brick.position.set(data.x, data.y, data.z);
                 brick.rotation.y = data.ry || 0;
                 brick.userData = { typeId: type.id, color: data.color, firebaseKey: childSnap.key };
+                
+                // Ensure spectator bricks can be seen clearly
+                brick.castShadow = true;
+                brick.receiveShadow = true;
+                
                 this.scene.add(brick);
                 this.bricks.push(brick);
                 box.expandByObject(brick);
@@ -1995,19 +2021,24 @@ class LegoGame {
             });
             
             console.log(`[Spectator] Synced ${count} bricks for ${displayCode}`);
+            diag.innerText = `DEBUG PATH: ${roomPath} (${count} bricks)`;
 
             // CAMERA CENTERING: Help the facilitator see the structure immediately
             if (count > 0) {
                 const center = new THREE.Vector3();
                 box.getCenter(center);
                 this.controls.target.copy(center);
-                // Adjust camera distance if needed
-                this.camera.position.set(center.x + 20, center.y + 20, center.z + 20);
+                
+                // Position camera at a nice isometric angle
+                const zoomFactor = 20;
+                this.camera.position.set(center.x + zoomFactor, center.y + zoomFactor, center.z + zoomFactor);
                 this.camera.lookAt(center);
                 this.controls.update();
             }
         }, (error) => {
             console.error('[Spectator] Sync error:', error);
+            diag.style.color = '#ff4d4d';
+            diag.innerText = `PATH ERROR: ${error.message}`;
             alert(`Spectator Sync Error: ${error.message}\nPath: ${roomPath}`);
         });
 
