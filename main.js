@@ -268,6 +268,12 @@ class LegoGame {
                     this.updateGhostBrick();
                 } else {
                     this.currentRotation += Math.PI / 2;
+                    
+                    // SYNC ROTATION: If in Overcooked Round 2, sync to other players
+                    if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.roomCode && db) {
+                        set(ref(db, `rooms/${this.roomCode}/state/currentRotation`), this.currentRotation);
+                    }
+                    
                     this.updateGhostBrick();
                 }
             }
@@ -339,6 +345,11 @@ class LegoGame {
     }
 
     onMouseMove(e) {
+        // LOCK BUILDER MOUSE: In Round 2, Builder follows Mover's position
+        if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.currentRole === 'BUILDER') {
+            return;
+        }
+
         const rect = this.canvas.getBoundingClientRect();
         this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -368,41 +379,61 @@ class LegoGame {
 
         // --- Normal Ghost Brick Logic ---
         if (!inSpecialMode) {
-            this.raycaster.setFromCamera(this.mouse, this.camera);
-            const targets = [this.floor, ...this.bricks];
-            const intersects = this.raycaster.intersectObjects(targets, true);
+            let pos = new THREE.Vector3();
+            let hasIntersection = false;
 
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                let pos = intersect.point.clone();
-                
-                pos.x = Math.round(pos.x);
-                pos.z = Math.round(pos.z);
-                
-                if (intersect.object !== this.floor) {
-                    let brick = intersect.object;
-                    while (brick && !brick.userData.typeId && brick.parent) {
-                        brick = brick.parent;
-                    }
+            if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.currentRole === 'BUILDER' && this.syncedPosition) {
+                // Use the position provided by the MOVER
+                pos.copy(this.syncedPosition);
+                hasIntersection = true;
+            } else {
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const targets = [this.floor, ...this.bricks];
+                const intersects = this.raycaster.intersectObjects(targets, true);
+
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+                    pos.copy(intersect.point);
                     
-                    if (brick) {
-                        const brickY = brick.position.y;
-                        const brickH = brick.userData.height || 1;
-                        
-                        // If we hit anything at or above the top surface (like studs), stack.
-                        // Otherwise (hitting the side), place at the same level.
-                        if (intersect.point.y >= brickY + brickH - 0.01) {
-                            pos.y = brickY + brickH;
-                        } else {
-                            pos.y = brickY;
+                    pos.x = Math.round(pos.x);
+                    pos.z = Math.round(pos.z);
+                    
+                    if (intersect.object !== this.floor) {
+                        let brick = intersect.object;
+                        while (brick && !brick.userData.typeId && brick.parent) {
+                            brick = brick.parent;
                         }
+                        
+                        if (brick) {
+                            const brickY = brick.position.y;
+                            const brickH = brick.userData.height || 1;
+                            
+                            // If we hit anything at or above the top surface (like studs), stack.
+                            // Otherwise (hitting the side), place at the same level.
+                            if (intersect.point.y >= brickY + brickH - 0.01) {
+                                pos.y = brickY + brickH;
+                            } else {
+                                pos.y = brickY;
+                            }
+                        } else {
+                            pos.y = 0;
+                        }
+                        pos.y = Math.round(pos.y * 3) / 3;
                     } else {
                         pos.y = 0;
                     }
-                    pos.y = Math.round(pos.y * 3) / 3;
-                } else {
-                    pos.y = 0;
+                    hasIntersection = true;
+
+                    // SYNC POSITION: If MOVER, push to Firebase
+                    if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.currentRole === 'MOVER' && db && this.roomCode) {
+                        const lastPos = this._lastSentPos || { x: -999, y: -999, z: -999 };
+                        if (Math.abs(pos.x - lastPos.x) > 0.01 || Math.abs(pos.y - lastPos.y) > 0.01 || Math.abs(pos.z - lastPos.z) > 0.01) {
+                            set(ref(db, `rooms/${this.roomCode}/state/currentPosition`), { x: pos.x, y: pos.y, z: pos.z });
+                            this._lastSentPos = { x: pos.x, y: pos.y, z: pos.z };
+                        }
+                    }
                 }
+            }
 
             const updateGhostVisuals = () => {
                 if (this.ghostBrick) {
@@ -418,53 +449,54 @@ class LegoGame {
                 }
             };
 
-            // --- ROD SPECIAL SNAPPING ---
-            if (this.currentBrickType.shape === 'rod') {
-                let bestHole = null;
-                let minDist = 1.0;
-                
-                this.bricks.forEach(b => {
-                    b.traverse(child => {
-                        if (child.userData.isHole) {
-                            const holeWPos = new THREE.Vector3();
-                            child.getWorldPosition(holeWPos);
-                            const d = pos.distanceTo(holeWPos);
-                            if (d < minDist) {
-                                minDist = d;
-                                bestHole = child;
+            if (hasIntersection) {
+                // --- ROD SPECIAL SNAPPING ---
+                if (this.currentBrickType.shape === 'rod') {
+                    let bestHole = null;
+                    let minDist = 1.0;
+                    
+                    this.bricks.forEach(b => {
+                        b.traverse(child => {
+                            if (child.userData.isHole) {
+                                const holeWPos = new THREE.Vector3();
+                                child.getWorldPosition(holeWPos);
+                                const d = pos.distanceTo(holeWPos);
+                                if (d < minDist) {
+                                    minDist = d;
+                                    bestHole = child;
+                                }
                             }
-                        }
+                        });
                     });
-                });
 
-                if (bestHole) {
-                    const holeWPos = new THREE.Vector3();
-                    bestHole.getWorldPosition(holeWPos);
-                    pos.copy(holeWPos);
-                    
-                    // Initialize ghost if not already created
-                    if (!this.ghostBrick || this.ghostBrick.userData.typeId !== this.currentBrickType.id) {
-                        if (this.ghostBrick) this.scene.remove(this.ghostBrick);
-                        this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor, 0.5);
-                        this.ghostBrick.userData.typeId = this.currentBrickType.id;
-                        this.scene.add(this.ghostBrick);
+                    if (bestHole) {
+                        const holeWPos = new THREE.Vector3();
+                        bestHole.getWorldPosition(holeWPos);
+                        pos.copy(holeWPos);
+                        
+                        // Initialize ghost if not already created
+                        if (!this.ghostBrick || this.ghostBrick.userData.typeId !== this.currentBrickType.id) {
+                            if (this.ghostBrick) this.scene.remove(this.ghostBrick);
+                            this.ghostBrick = createBrick(this.currentBrickType, this.currentBrickColor, 0.5);
+                            this.ghostBrick.userData.typeId = this.currentBrickType.id;
+                            this.scene.add(this.ghostBrick);
+                        }
+                        
+                        this.ghostBrick.position.copy(pos);
+                        // Technic holes are along Z axis. Rod (cylinder Y) needs X rotation.
+                        this.ghostBrick.rotation.set(Math.PI / 2, 0, 0); 
+                        // Manual rotation around rod's own axis
+                        this.ghostBrick.rotateY(this.rodRotationIndex * Math.PI / 2);
+                        
+                        this.isPlacementValid = true;
+                        if (this.selectionMarker) this.selectionMarker.visible = false;
+                        updateGhostVisuals();
+                        return; 
+                    } else {
+                        // No hole found, rod stays at cursor but invalid
+                        this.isPlacementValid = false;
                     }
-                    
-                    this.ghostBrick.position.copy(pos);
-                    // Technic holes are along Z axis. Rod (cylinder Y) needs X rotation.
-                    this.ghostBrick.rotation.set(Math.PI / 2, 0, 0); 
-                    // Manual rotation around rod's own axis
-                    this.ghostBrick.rotateY(this.rodRotationIndex * Math.PI / 2);
-                    
-                    this.isPlacementValid = true;
-                    if (this.selectionMarker) this.selectionMarker.visible = false;
-                    updateGhostVisuals();
-                    return; 
-                } else {
-                    // No hole found, rod stays at cursor but invalid
-                    this.isPlacementValid = false;
                 }
-            }
 
                 if (!this.ghostBrick || this.ghostBrick.userData.typeId !== this.currentBrickType.id) {
                     if (this.ghostBrick) this.scene.remove(this.ghostBrick);
@@ -851,6 +883,17 @@ class LegoGame {
         return colors[Math.abs(hash) % colors.length];
     }
 
+    _rgbToHex(rgb) {
+        if (!rgb) return '';
+        if (rgb.startsWith('#')) return rgb;
+        const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (!match) return rgb;
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
     togglePlayerHighlight(playerId) {
         // Toggle off if already highlighting
         this.highlightedPlayerId = (this.highlightedPlayerId === playerId) ? null : playerId;
@@ -916,6 +959,58 @@ class LegoGame {
             const playersRef = ref(db, `rooms/${code}/players`);
             onValue(playersRef, (snapshot) => {
                 this.updatePlayerList(snapshot.val());
+            });
+
+            // SYNCED STATE: Listen for shared attributes (Color, Rotation)
+            const stateRef = ref(db, `rooms/${code}/state`);
+            onValue(stateRef, (snapshot) => {
+                const state = snapshot.val();
+                if (!state) return;
+                
+                let changed = false;
+                if (state.currentColor !== undefined && state.currentColor !== this.currentBrickColor) {
+                    this.currentBrickColor = state.currentColor;
+                    changed = true;
+                    
+                    // Update UI active state for color
+                    document.querySelectorAll('.color-item').forEach(el => {
+                        // This is a bit hacky but works since we don't have a direct map to elements
+                        const swatch = el.querySelector('.color-swatch');
+                        if (swatch) {
+                            const hex = swatch.style.backgroundColor; // This returns "rgb(r, g, b)"
+                            // Better: check against the BRICK_COLORS data
+                            // Actually, we can just re-run parts of setupUI or find the one with active class
+                        }
+                    });
+                    // Simpler: just refresh the color items' active state
+                    document.querySelectorAll('.color-item').forEach(el => {
+                        const swatch = el.querySelector('.color-swatch');
+                        if (swatch) {
+                            const itemColor = BRICK_COLORS.find(c => `#${c.hex.toString(16).padStart(6, '0')}` === this._rgbToHex(swatch.style.backgroundColor));
+                            if (itemColor && itemColor.hex === this.currentBrickColor) {
+                                el.classList.add('active');
+                            } else {
+                                el.classList.remove('active');
+                            }
+                        }
+                    });
+                }
+                
+                if (state.currentRotation !== undefined && state.currentRotation !== this.currentRotation) {
+                    this.currentRotation = state.currentRotation;
+                    changed = true;
+                }
+
+                if (state.currentPosition !== undefined) {
+                    if (!this.syncedPosition) this.syncedPosition = new THREE.Vector3();
+                    this.syncedPosition.set(state.currentPosition.x, state.currentPosition.y, state.currentPosition.z);
+                    changed = true;
+                }
+                
+                if (changed) {
+                    // Force update for Builders/others seeing the movement
+                    this.updateGhostBrick();
+                }
             });
         }
         
@@ -1116,6 +1211,12 @@ class LegoGame {
             item.onclick = () => {
                 if (!this.canPerform('COLOR_PICKER')) return;
                 this.currentBrickColor = color.hex;
+                
+                // SYNC COLOR: If in Overcooked Round 2, sync to other players
+                if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.roomCode && db) {
+                    set(ref(db, `rooms/${this.roomCode}/state/currentColor`), this.currentBrickColor);
+                }
+
                 document.querySelectorAll('.color-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 
@@ -2249,12 +2350,13 @@ class LegoGame {
         const roomSnapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}`));
         const roomData = roomSnapshot.val();
         const playerKeys = Object.keys(roomData.players || {}).sort();
-        const roleOrder = ['BUILDER', 'REMOVER', 'COLOR_PICKER', 'ROTATOR'];
+        const roleOrder = ['MOVER', 'BUILDER', 'REMOVER', 'COLOR_PICKER', 'ROTATOR'];
         
         const myIndex = playerKeys.indexOf(this.playerId);
-        if (myIndex === 0) this.currentRole = 'BUILDER';
-        else if (myIndex === 1) this.currentRole = 'REMOVER';
-        else if (myIndex === 2) this.currentRole = 'COLOR_PICKER';
+        if (myIndex === 0) this.currentRole = 'MOVER';
+        else if (myIndex === 1) this.currentRole = 'BUILDER';
+        else if (myIndex === 2) this.currentRole = 'REMOVER';
+        else if (myIndex === 3) this.currentRole = 'COLOR_PICKER';
         else this.currentRole = 'ROTATOR';
 
         this.displayRole(this.currentRole);
@@ -2280,18 +2382,19 @@ class LegoGame {
 
     displayRole(role) {
         const descriptions = {
-            'BUILDER': 'Can only place blocks',
+            'MOVER': 'Hover to guide where blocks are placed',
+            'BUILDER': 'Click to place blocks (Follow the Mover!)',
             'REMOVER': 'Can only delete blocks (Undo/Clear)',
             'COLOR_PICKER': 'Can only change block colors',
-            'ROTATOR': 'Can only rotate blocks (Arrow Keys)'
+            'ROTATOR': 'Can only rotate blocks ("R" Key)'
         };
         document.getElementById('role-card').classList.remove('hidden');
         document.getElementById('role-name').innerText = role;
         document.getElementById('role-desc').innerText = descriptions[role];
         
-        // Ensure ghost brick is hidden initially for non-builders
-        if (role !== 'BUILDER' && this.ghostBrick) {
-            this.ghostBrick.visible = false;
+        // Ensure ghost brick is visible for Mover and Builder
+        if (this.ghostBrick) {
+            this.ghostBrick.visible = (role === 'MOVER' || role === 'BUILDER');
         }
 
         // Header tool visibility
