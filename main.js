@@ -2001,6 +2001,10 @@ class LegoGame {
             this.bricks.forEach(b => this.scene.remove(b));
             this.bricks = [];
             
+            // ESSENTIAL: Toggling global containers
+            this.landingScreen.classList.remove('hidden');
+            this.uiContainer.classList.add('hidden');
+
             this.showScreen('facilitator-dashboard');
             diag.classList.add('hidden');
             recenterBtn.classList.add('hidden');
