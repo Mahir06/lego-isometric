@@ -942,6 +942,15 @@ class LegoGame {
     enterRoom(code) {
         console.log('Entering Room:', code);
         this.roomCode = code;
+
+        // DEFENSIVE: Ensure worldCode is set. If this is an overcooked room (with underscore),
+        // extract the first part as worldCode.
+        if (code.includes('_')) {
+            this.worldCode = code.split('_')[0];
+        } else {
+            this.worldCode = code;
+        }
+
         if (this.roomCodeDisplay) this.roomCodeDisplay.innerText = code;
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
@@ -1916,6 +1925,14 @@ class LegoGame {
     }
 
     spectateRoom(roomId) {
+        // DEFENSIVE: Ensure worldCode is available
+        const world = this.worldCode || this.roomCode;
+        if (!world) {
+            console.error('[Facilitator] No world code found for spectator sync!');
+            alert('Error: No world code found. Please join a world first.');
+            return;
+        }
+
         this.overcookedRoomId = roomId;
         this.toggleReferenceView(false);
         
@@ -1923,12 +1940,16 @@ class LegoGame {
         this.landingScreen.classList.add('hidden');
         document.getElementById('ui-container').classList.remove('hidden');
         
-        document.getElementById('room-code-display').innerText = `Spectating: ${roomId}`;
+        // Clear ghost and ensure visibility
         if (this.ghostBrick) this.ghostBrick.visible = false;
         
         // Fix camera aspect ratio and renderer size after showing
         setTimeout(() => this.onWindowResize(), 10);
         
+        // UI: Show the technical ID being spectated
+        const displayCode = world.includes('_') ? world : `${world}_${roomId}`;
+        document.getElementById('room-code-display').innerText = `Spectating: ${displayCode}`;
+
         // Hide normal build tools
         document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
         document.getElementById('fac-spectate-back').classList.remove('hidden');
@@ -1939,15 +1960,9 @@ class LegoGame {
         // Detach previous listeners
         if (this.bricksRef) off(this.bricksRef);
         
-        // Bind to the specific room's bricks (Players are in [worldCode]_[roomId])
-        const world = this.worldCode;
-        if (!world) {
-            console.error('[Facilitator] No worldCode found for spectator sync!');
-            return;
-        }
-        
-        const roomPath = `rooms/${world}_${roomId}/bricks`;
-        document.getElementById('room-code-display').innerText = `Spectating: ${world}_${roomId}`;
+        // Construct the exact path players are using
+        // Players are in rooms/[worldCode]_[roomId]/bricks
+        const roomPath = `rooms/${displayCode}/bricks`;
         console.log(`[Facilitator] Start spectating: ${roomPath}`);
         this.bricksRef = ref(db, roomPath);
         
@@ -1962,6 +1977,9 @@ class LegoGame {
                 return;
             }
             
+            const box = new THREE.Box3();
+            let count = 0;
+
             snapshot.forEach((childSnap) => {
                 const data = childSnap.val();
                 const type = BRICK_TYPES.find(t => t.id === data.typeId);
@@ -1972,9 +1990,22 @@ class LegoGame {
                 brick.userData = { typeId: type.id, color: data.color, firebaseKey: childSnap.key };
                 this.scene.add(brick);
                 this.bricks.push(brick);
+                box.expandByObject(brick);
+                count++;
             });
             
-            console.log(`[Spectator] Synced ${this.bricks.length} bricks for ${roomId}`);
+            console.log(`[Spectator] Synced ${count} bricks for ${displayCode}`);
+
+            // CAMERA CENTERING: Help the facilitator see the structure immediately
+            if (count > 0) {
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                this.controls.target.copy(center);
+                // Adjust camera distance if needed
+                this.camera.position.set(center.x + 20, center.y + 20, center.z + 20);
+                this.camera.lookAt(center);
+                this.controls.update();
+            }
         }, (error) => {
             console.error('[Spectator] Sync error:', error);
             alert(`Spectator Sync Error: ${error.message}\nPath: ${roomPath}`);
