@@ -1006,6 +1006,20 @@ class LegoGame {
                     this.syncedPosition.set(state.currentPosition.x, state.currentPosition.y, state.currentPosition.z);
                     changed = true;
                 }
+
+                if (state.currentBrickType !== undefined && (!this.currentBrickType || state.currentBrickType !== this.currentBrickType.id)) {
+                    const newType = BRICK_TYPES.find(t => t.id === state.currentBrickType);
+                    if (newType) {
+                        this.currentBrickType = newType;
+                        changed = true;
+                        
+                        // Update UI active state for brick items
+                        document.querySelectorAll('.brick-item').forEach(el => {
+                            if (el.innerText === newType.id) el.classList.add('active');
+                            else el.classList.remove('active');
+                        });
+                    }
+                }
                 
                 if (changed) {
                     // Force update for Builders/others seeing the movement
@@ -1181,8 +1195,22 @@ class LegoGame {
                     }
                     if (this.gameMode === 'overcooked' && this.timerExpired) return;
                     this.currentBrickType = type;
+
+                    // SYNC BRICK TYPE: If in Overcooked Round 2, sync to rest of team (especially MOVER)
+                    if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.roomCode && db) {
+                        set(ref(db, `rooms/${this.roomCode}/state/currentBrickType`), type.id);
+                    }
+
                     document.querySelectorAll('.brick-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
+
+                    // Force ghost update immediately
+                    if (this.ghostBrick) {
+                        this.scene.add(this.ghostBrick); // Just to be safe, though we usually replace it
+                        this.scene.remove(this.ghostBrick);
+                        this.ghostBrick = null;
+                    }
+                    this.updateGhostBrick();
                 };
                 if (type.id === this.currentBrickType.id) item.classList.add('active');
                 grid.appendChild(item);
