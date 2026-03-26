@@ -187,6 +187,7 @@ class LegoGame {
         const CLICK_THRESHOLD = 5;
 
         this.container.addEventListener('mousedown', (e) => {
+            if (this.isFacilitator) return; // Strict facilitator lockdown
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
             this.mouseDownPos.set(e.clientX, e.clientY);
             this.isDragging = false;
@@ -254,6 +255,7 @@ class LegoGame {
         this.container.addEventListener('contextmenu', (e) => e.preventDefault());
 
         window.addEventListener('keydown', (e) => {
+            if (this.isFacilitator) return; // Strict facilitator lockdown
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (e.key.toLowerCase() === 'r') {
                 if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
@@ -953,7 +955,14 @@ class LegoGame {
 
         if (this.roomCodeDisplay) this.roomCodeDisplay.innerText = code;
         this.landingScreen.classList.add('hidden');
-        document.getElementById('ui-container').classList.remove('hidden');
+        this.uiContainer.classList.remove('hidden');
+
+        // Facilitator UI Suppression
+        if (this.isFacilitator) {
+            document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
+            document.getElementById('sidebar')?.classList.add('hidden');
+            document.getElementById('inventory-panel')?.classList.add('hidden');
+        }
         
         // Register Player
         if (db) {
@@ -1154,6 +1163,7 @@ class LegoGame {
     }
 
     onRightClick(e) {
+        if (this.isFacilitator) return;
         if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
             if (!this.canPerform('REMOVER')) return;
         }
@@ -1937,124 +1947,70 @@ class LegoGame {
             return;
         }
 
-        this.overcookedRoomId = roomId;
-        this.toggleReferenceView(false);
-        
-        // Hide landing UI and show Main Game Canvas properly
-        this.landingScreen.classList.add('hidden');
-        document.getElementById('ui-container').classList.remove('hidden');
-        
-        // Clear ghost and ensure visibility
-        if (this.ghostBrick) this.ghostBrick.visible = false;
-        
-        // Fix camera aspect ratio and renderer size after showing
-        setTimeout(() => this.onWindowResize(), 10);
-        
-        // UI: Show the technical ID being spectated
         const displayCode = world.includes('_') ? world : `${world}_${roomId}`;
-        document.getElementById('room-code-display').innerText = `Spectating: ${displayCode}`;
+        
+        // Inherit the robust synchronization path used by players
+        console.log(`[Facilitator] Spectating room via player path: ${displayCode}`);
+        this.enterRoom(displayCode);
 
-        // PATH DIAGNOSTIC LABEL: Create a temporary overlay to confirm path
+        // Show diagnostic and recenter button for facilitator
         let diag = document.getElementById('spectator-diag');
         if (!diag) {
             diag = document.createElement('div');
             diag.id = 'spectator-diag';
-            diag.style.cssText = 'position:fixed; top:70px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#00ff00; padding:8px 15px; border-radius:20px; font-family:monospace; font-size:12px; z-index:9999; pointer-events:none;';
+            diag.className = 'spectator-diag-label';
             document.body.appendChild(diag);
         }
         diag.classList.remove('hidden');
-        diag.innerText = `DEBUG PATH: rooms/${displayCode}/bricks`;
+        diag.innerHTML = `<span>LIVE SPECTATOR</span> <span class="spectator-diag-item">${displayCode}</span>`;
 
-        // Hide normal build tools
-        document.querySelectorAll('.tool-btn:not(#exit-world-btn):not(#fac-spectate-back)').forEach(el => el.classList.add('hidden'));
-        document.getElementById('fac-spectate-back').classList.remove('hidden');
-        document.getElementById('inventory-panel').classList.add('hidden');
-        document.getElementById('sidebar').classList.add('hidden');
-        document.getElementById('camera-btn').classList.remove('hidden'); // allow screenshots
-        
-        // Detach previous listeners
-        if (this.bricksRef) off(this.bricksRef);
-        
-        // Construct the exact path players are using
-        // Players are in rooms/[worldCode]_[roomId]/bricks
-        const roomPath = `rooms/${displayCode}/bricks`;
-        console.log(`[Facilitator] Start spectating: ${roomPath}`);
-        this.bricksRef = ref(db, roomPath);
-        
-        // Use onValue for a full atomic sync — rebuilds the scene whenever Firebase data changes
-        onValue(this.bricksRef, (snapshot) => {
-            // Remove all current spectator bricks
-            this.bricks.forEach(b => this.scene.remove(b));
-            this.bricks = [];
-            
-            if (!snapshot.exists()) {
-                console.log('[Spectator] No bricks found at path:', roomPath);
-                diag.style.color = '#ff4d4d';
-                diag.innerText = `DEBUG PATH: ${roomPath} (Empty)`;
-                return;
-            }
-            
-            diag.style.color = '#00ff00';
-            const box = new THREE.Box3();
-            let count = 0;
-
-            snapshot.forEach((childSnap) => {
-                const data = childSnap.val();
-                const type = BRICK_TYPES.find(t => t.id === data.typeId);
-                if (!type) {
-                    console.warn('[Spectator] Unknown brick type:', data.typeId);
-                    return;
-                }
-                const brick = createBrick(type, data.color, data.opacity || 1.0);
-                brick.position.set(data.x, data.y, data.z);
-                brick.rotation.y = data.ry || 0;
-                brick.userData = { typeId: type.id, color: data.color, firebaseKey: childSnap.key };
-                
-                // Ensure spectator bricks can be seen clearly
-                brick.castShadow = true;
-                brick.receiveShadow = true;
-                
-                this.scene.add(brick);
-                this.bricks.push(brick);
-                box.expandByObject(brick);
-                count++;
-            });
-            
-            console.log(`[Spectator] Synced ${count} bricks for ${displayCode}`);
-            diag.innerText = `DEBUG PATH: ${roomPath} (${count} bricks)`;
-
-            // CAMERA CENTERING: Help the facilitator see the structure immediately
-            if (count > 0) {
+        let recenterBtn = document.getElementById('spectator-recenter-btn');
+        if (!recenterBtn) {
+            recenterBtn = document.createElement('button');
+            recenterBtn.id = 'spectator-recenter-btn';
+            recenterBtn.innerHTML = '🎯 Recenter View';
+            document.body.appendChild(recenterBtn);
+        }
+        recenterBtn.classList.remove('hidden');
+        recenterBtn.onclick = () => {
+            if (this.bricks.length > 0) {
+                const box = new THREE.Box3();
+                this.bricks.forEach(b => box.expandByObject(b));
                 const center = new THREE.Vector3();
                 box.getCenter(center);
                 this.controls.target.copy(center);
-                
-                // Position camera at a nice isometric angle
-                const zoomFactor = 20;
+                const zoomFactor = 25;
                 this.camera.position.set(center.x + zoomFactor, center.y + zoomFactor, center.z + zoomFactor);
                 this.camera.lookAt(center);
                 this.controls.update();
             }
-        }, (error) => {
-            console.error('[Spectator] Sync error:', error);
-            diag.style.color = '#ff4d4d';
-            diag.innerText = `PATH ERROR: ${error.message}`;
-            alert(`Spectator Sync Error: ${error.message}\nPath: ${roomPath}`);
-        });
+        };
 
-        // Override exit button
-        const exitBtn = document.getElementById('exit-world-btn');
-        exitBtn.onclick = () => {
+        // Facilitator-specific "Mission Control" button handler
+        const backBtn = document.getElementById('fac-spectate-back');
+        backBtn.classList.remove('hidden');
+        backBtn.onclick = () => {
+            // Detach listeners and return to dashboard
+            if (this.bricksRef) off(this.bricksRef);
+            
+            // Clean up: Remove facilitator from room players if connected
+            if (db && this.roomCode) {
+                remove(ref(db, `rooms/${this.roomCode}/players/${this.playerId}`));
+            }
+
+            this.bricks.forEach(b => this.scene.remove(b));
+            this.bricks = [];
+            
             this.showScreen('facilitator-dashboard');
+            diag.classList.add('hidden');
+            recenterBtn.classList.add('hidden');
+            
+            // Restore UI for the dashboard
             document.querySelectorAll('.tool-btn:not(#exit-world-btn)').forEach(el => el.classList.remove('hidden'));
-            document.getElementById('inventory-panel').classList.remove('hidden');
-            exitBtn.onclick = () => {
-                if (confirm('Exit this world and return to the main screen?')) {
-                    window.location.reload();
-                }
-            };
+            document.getElementById('sidebar')?.classList.add('hidden'); // Stay hidden for facilitator dashboard
         };
     }
+
 
     async seedDefaultRooms() {
         if (!db) return;

@@ -1050,3 +1050,63 @@ header {
     50% { transform: scale(1.02); box-shadow: 0 4px 15px rgba(28, 176, 246, 0.4); }
     100% { transform: scale(1); box-shadow: 0 4px 0 #1480b3; }
 }
+/* ═══════════════════════════════════
+   SPECTATOR / FACILITATOR UI
+═══════════════════════════════════ */
+.spectator-diag-label {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #00ff00;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-family: 'Bricolage Grotesk', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 0 0 2px rgba(0, 255, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(5px);
+}
+
+.spectator-diag-item {
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+
+#spectator-recenter-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 230px; /* To the left of the player panel */
+    z-index: 9999;
+    background: #1cb0f6;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-weight: 800;
+    font-family: var(--font-display);
+    cursor: pointer;
+    box-shadow: 0 4px 0 #1480b3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.1s;
+}
+
+#spectator-recenter-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #1480b3;
+    background: #2ab6f7;
+}
+
+#spectator-recenter-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #1480b3;
+}
