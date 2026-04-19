@@ -6,8 +6,8 @@
     --text-color: #3c3c3c;
     --border-color: #e5e5e5;
     --font-main: 'Nunito', sans-serif;
-    --font-display: 'Nunito', sans-serif;
-    --font-logo: 'Nunito', sans-serif;
+    --font-display: 'Fira Sans', sans-serif;
+    --font-logo: 'Fira Sans', sans-serif;
     --card-shadow: 0 4px 0 #e5e5e5;
     --sidebar-width: 260px;
     --players-width: 200px;
@@ -98,8 +98,8 @@ body {
     font-family: var(--font-display);
     font-size: 2.1rem;
     font-weight: 800;
-    color: #58cc02;
-    margin-bottom: 4px;
+    color: #3c3c3c;
+    margin-bottom: 8px;
 }
 .modal-header p {
     color: #afafaf;
@@ -137,7 +137,11 @@ body {
     text-align: left;
     gap: 16px;
 }
-.lobby-header-row h1 { text-align: left; }
+.lobby-header-row h1 { 
+    text-align: left; 
+    font-family: var(--font-display);
+    font-weight: 800;
+}
 .lobby-header-row p  { text-align: left; }
 .lobby-meta {
     display: flex;
@@ -165,7 +169,7 @@ body {
     color: #58cc02;
     font-size: 0.88rem;
     letter-spacing: 1.5px;
-    font-family: 'Bricolage Grotesk', monospace;
+    font-family: var(--font-display);
 }
 
 /* Player name badge */
@@ -354,11 +358,11 @@ header {
 }
 
 .logo-text {
-    font-family: var(--font-display);
-    color: var(--primary-color);
-    font-size: 1.6rem;
+    font-family: var(--font-logo);
     font-weight: 800;
-    line-height: 1;
+    font-size: 1.5rem;
+    color: #58cc02;
+    letter-spacing: -0.5px;
 }
 
 .room-badge {
@@ -919,7 +923,7 @@ header {
     color: #2e7d32;
     letter-spacing: 1.5px;
     font-size: 1.1rem;
-    font-family: 'Bricolage Grotesk', sans-serif;
+    font-family: var(--font-display);
 }
 
 /* ═══════════════════════════════════
@@ -1062,7 +1066,7 @@ header {
     color: #00ff00;
     padding: 10px 20px;
     border-radius: 30px;
-    font-family: 'Bricolage Grotesk', monospace;
+    font-family: var(--font-display);
     font-size: 13px;
     font-weight: 600;
     z-index: 9999;
