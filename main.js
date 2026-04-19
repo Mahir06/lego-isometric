@@ -102,8 +102,9 @@ class LegoGame {
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
         const d = 10;
-        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 4000);
-        this.camera.position.set(20, 20, 20);
+        // Large near/far planes to prevent clipping in massive worlds
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, -5000, 5000);
+        this.camera.position.set(500, 500, 500);
         this.camera.lookAt(0, 0, 0);
     }
 

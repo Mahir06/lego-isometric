@@ -397,7 +397,8 @@ export class ExpressBuildMode {
 
         // Center camera on player's zone
         this.game.controls.target.set(this.zoneOrigin.x, 0, this.zoneOrigin.z);
-        this.game.camera.position.set(this.zoneOrigin.x + 20, 20, this.zoneOrigin.z + 20);
+        // Move camera far away to prevent clipping in isometric view
+        this.game.camera.position.set(this.zoneOrigin.x + 500, 500, this.zoneOrigin.z + 500);
         this.game.camera.lookAt(this.zoneOrigin.x, 0, this.zoneOrigin.z);
         this.game.controls.update();
 
@@ -685,8 +686,9 @@ export class ExpressBuildMode {
             box.getCenter(center);
             this.game.controls.target.copy(center);
             const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.z) * 0.8;
-            this.game.camera.position.set(center.x + maxDim, maxDim * 0.8, center.z + maxDim);
+            const maxDim = Math.max(size.x, size.z, 200); // minimum view distance
+            // Position camera much further back to prevent near-plane clipping
+            this.game.camera.position.set(center.x + 500 + maxDim, 500 + maxDim, center.z + 500 + maxDim);
             this.game.camera.lookAt(center);
             this.game.controls.update();
         }
