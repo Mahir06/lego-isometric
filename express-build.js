@@ -515,15 +515,8 @@ export class ExpressBuildMode {
      */
     forceRendererResize() {
         const doResize = () => {
-            const container = document.getElementById('game-canvas-container');
-            if (container && this.game.renderer) {
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                if (w > 0 && h > 0) {
-                    this.game.renderer.setSize(w, h);
-                    this.game.camera.aspect = w / h;
-                    this.game.camera.updateProjectionMatrix();
-                }
+            if (this.game && typeof this.game.onWindowResize === 'function') {
+                this.game.onWindowResize();
             }
         };
         // Fire at multiple intervals to catch CSS layout settling
