@@ -104,30 +104,27 @@ export class ImposterBuilderMode {
 
             const card = document.createElement('div');
             card.className = 'room-card';
-            card.style.borderTop = `5px solid ${room.color === 'gray' ? '#888' : room.color}`;
-            
-            let actionHtml = '';
-            if (this.game.isFacilitator) {
-                actionHtml = `<button class="primary-btn" style="width:100%; margin-top:10px;">Spectate</button>`;
-            } else if (inProgress) {
-                actionHtml = `<div class="room-status" style="color: #ff9800; font-weight:bold; margin-top:10px;">In Progress (${room.status})</div>`;
-            } else if (isFull) {
-                actionHtml = `<div class="room-status" style="color: #ff4b4b; font-weight:bold; margin-top:10px;">Room Full</div>`;
-            } else {
-                actionHtml = `<button class="primary-btn" style="width:100%; margin-top:10px;">Join Room</button>`;
+
+            // Add top border
+            if (room.color && room.color !== 'gray') {
+                const colors = { red: '#ff4b4b', green: '#8bc34a', blue: '#1cb0f6', yellow: '#ffeb3b' };
+                card.style.borderTop = `4px solid ${colors[room.color] || room.color}`;
             }
 
+            let statusText = '';
+            if (inProgress) statusText = ` <span style="font-size:0.7em; color:#ff9800;">(In Progress)</span>`;
+            else if (isFull) statusText = ` <span style="font-size:0.7em; color:#ff4b4b;">(Full)</span>`;
+
             card.innerHTML = `
-                <div class="room-name">${room.name}</div>
-                <div class="room-count">👥 ${playerCount}/6 Players</div>
-                ${actionHtml}
+                <div class="room-icon">🎭</div>
+                <div class="room-name">${room.name}${statusText}</div>
+                <div class="room-count">${playerCount}/6 Players</div>
             `;
 
             if (this.game.isFacilitator) {
                 card.onclick = () => this.spectateRoom(room.id);
             } else if (!inProgress && !isFull) {
-                const btn = card.querySelector('button');
-                if (btn) btn.onclick = () => this.joinRoom(room.id);
+                card.onclick = () => this.joinRoom(room.id);
             }
 
             grid.appendChild(card);
@@ -244,6 +241,23 @@ export class ImposterBuilderMode {
                 card.querySelector('button').onclick = () => this.spectateRoom(room.id);
                 grid.appendChild(card);
             });
+
+            // Fast forward detection
+            let canFastForward = false;
+            activeRooms.forEach(r => {
+                if (r.status === 'BUILDING' || r.status === 'SPECTATING') canFastForward = true;
+            });
+
+            const startBtn = document.getElementById('imposter-fac-start');
+            if (startBtn) {
+                if (canFastForward) {
+                    startBtn.innerText = "Fast Forward Phase ⏭️";
+                    startBtn.style.backgroundColor = "#ff9800"; // Orange
+                } else {
+                    startBtn.innerText = "Start Round";
+                    startBtn.style.backgroundColor = "";
+                }
+            }
         });
 
         // Bind exit
@@ -266,6 +280,23 @@ export class ImposterBuilderMode {
             const snapshot = await get(ref(db, `rooms/${worldCode}/imposter_rooms`));
             const rooms = snapshot.val();
             if (rooms) {
+                // First, check if we're doing a fast-forward
+                let isFastForwarding = false;
+                Object.values(rooms).forEach(room => {
+                    if (room.players && Object.keys(room.players).length > 0) {
+                        if (room.status === 'BUILDING') {
+                            isFastForwarding = true;
+                            set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/status`), 'SPECTATING');
+                        } else if (room.status === 'SPECTATING') {
+                            isFastForwarding = true;
+                            set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/status`), 'VOTING');
+                        }
+                    }
+                });
+
+                if (isFastForwarding) return; // Ignore start logic if we fast-forwarded
+
+                // Otherwise, start the game normally for WAITING rooms
                 Object.values(rooms).forEach(room => {
                     if (room.players && Object.keys(room.players).length > 0) {
                         
@@ -351,47 +382,46 @@ export class ImposterBuilderMode {
         this.game.uiContainer.classList.remove('hidden');
         this.game.enterRoom(roomCode);
 
-        this.onSpectateStarted();
-
-        // Listen for all status changes so the facilitator UI stays in sync 
-        // (but they don't do transitions themselves)
-        const statusRef = ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`);
-        onValue(statusRef, (snap) => {
-            const status = snap.val();
-            if (status === 'ENDED') {
-                this.onGameEnded();
+        // Load all players' zone visuals
+        get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${roomId}/players`)).then(snap => {
+            const players = snap.val();
+            if (players) {
+                const sorted = Object.values(players).sort((a, b) => a.id.localeCompare(b.id));
+                this.createAllZoneVisuals(sorted);
+                this.expandFloorForZones(sorted.length);
             }
         });
+
+        document.getElementById('fac-spectate-back').classList.remove('hidden');
 
         // Setup the back button
         const backBtn = document.getElementById('fac-spectate-back');
         if (backBtn) {
-            backBtn.classList.remove('hidden');
             backBtn.onclick = () => {
-                off(statusRef);
                 if (this.timerInterval) clearInterval(this.timerInterval);
                 this.game.landingScreen.classList.remove('hidden');
                 this.game.uiContainer.classList.add('hidden');
                 backBtn.classList.add('hidden');
-                // Return to dashboard
-                this.game.showScreen('imposter-facilitator-dashboard');
                 
                 // Clear bricks locally
                 if (this.game.bricksRef) off(this.game.bricksRef);
                 this.game.bricks.forEach(b => this.game.scene.remove(b));
                 this.game.bricks = [];
                 this.cleanupZoneVisuals();
+                this.hideBuildHUD();
+
+                // Return to dashboard
+                this.game.showScreen('imposter-facilitator-dashboard');
             };
         }
 
-        // Expand floor + force resize
-        get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${roomId}/players`)).then(snap => {
-            const players = snap.val();
-            if (players) {
-                this.expandFloorForZones(Object.keys(players).length);
-            }
-        });
+        // Lock controls and show basic info
+        this.gameState = 'SPECTATING';
+        this.lockBuildingControls();
+        this.showBuildHUD();
+        this.updateHUDText("Spectate Live", `Room: ${roomId}`);
         
+        setTimeout(() => this.zoomOutToAll(), 500); // give time for bricks to load
         this.forceRendererResize();
     }
 
