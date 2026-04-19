@@ -54,15 +54,10 @@
                         <span>Overcooked Mode</span>
                         <small>Team-based puzzle building with unique player roles.</small>
                     </div>
-                    <div class="gallery-item disabled" title="Coming Soon">
-                        <div class="gallery-icon">🏁</div>
-                        <span>Race</span>
-                        <small>Compete to build the fastest structure under the clock.</small>
-                    </div>
-                    <div class="gallery-item disabled" title="Coming Soon">
-                        <div class="gallery-icon">🏰</div>
-                        <span>Siege</span>
-                        <small>Build defences while the other team tries to tear them down.</small>
+                    <div class="gallery-item" id="mode-express-build">
+                        <div class="gallery-icon">🎨</div>
+                        <span>Express Build</span>
+                        <small>Individual builds from a shared prompt. Reflect, create, then share.</small>
                     </div>
                     <div class="gallery-item disabled" title="Coming Soon">
                         <div class="gallery-icon">🌉</div>
@@ -120,7 +115,85 @@
             </div>
         </div>
 
-        <!-- FACILITATOR DASHBOARD -->
+        <!-- EXPRESS BUILD: Lobby -->
+        <div class="landing-content hidden" id="landing-express-lobby">
+            <div class="modal-header">
+                <div class="lobby-header-row">
+                    <div>
+                        <h1>Express Build Lobby</h1>
+                        <p>Pick a team room to join!</p>
+                    </div>
+                    <div class="lobby-meta">
+                        <div class="lobby-room-badge" id="express-lobby-code">WORLD: <span>-</span></div>
+                        <div class="lobby-player-name" id="express-lobby-player-display">👤 <span></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="express-room-grid" class="room-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="create-express-room-btn" class="secondary-btn">＋ Create New Room</button>
+            </div>
+        </div>
+
+        <!-- EXPRESS BUILD: Room Lobby (Ready System) -->
+        <div class="landing-content hidden" id="landing-express-room">
+            <div class="modal-header">
+                <h1 id="express-room-title">Room</h1>
+                <div class="room-status-info">
+                    <span id="express-player-count">0/6 Players</span>
+                    <span class="warning-text">Waiting for facilitator to start...</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="express-ready-list" class="ready-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="express-ready-btn" class="primary-btn">I'M READY!</button>
+                <button id="express-leave-btn" class="secondary-btn">Leave Room</button>
+            </div>
+        </div>
+
+        <!-- EXPRESS BUILD: Facilitator Dashboard -->
+        <div class="landing-content hidden facilitator-dashboard-container" id="landing-express-facilitator-dashboard">
+            <div class="modal-header">
+                <h1 style="margin-bottom: 5px;">Express Build — Mission Control</h1>
+                <p style="color: #666; font-weight: 600;">Set a prompt and manage the round</p>
+            </div>
+            <div class="modal-body fac-layout">
+                <aside class="fac-sidebar">
+                    <section>
+                        <h3 class="fac-section-title">Build Prompt</h3>
+                        <textarea id="express-prompt-input" class="room-input" rows="4" placeholder="Enter a prompt for players... (Leave blank for a random one)" style="width:100%; resize:vertical; font-family: Nunito, sans-serif; font-size: 0.85rem; padding: 10px; border-radius: 10px; border: 2px solid #e5e5e5;"></textarea>
+                    </section>
+                    <section style="margin-top: 15px;">
+                        <h3 class="fac-section-title">Game Parameters</h3>
+                        <div class="fac-setting-row">
+                            <label>Build Time (s)</label>
+                            <input type="number" id="express-fac-time" value="300">
+                        </div>
+                    </section>
+                    <hr style="border: none; border-top: 2px solid #eef2f8;">
+                    <section>
+                        <h3 class="fac-section-title">Controls</h3>
+                        <button id="express-fac-start" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px;">▶ Start Round</button>
+                        <button id="express-fac-end" class="primary-btn" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000; font-size: 0.85rem; padding: 12px;">⏹ End Building (Spectate)</button>
+                    </section>
+                </aside>
+                <main class="fac-main-panel">
+                    <h3 class="fac-section-title">Live Active Rooms</h3>
+                    <div id="express-fac-room-list">
+                        <div style="text-align: center; color: #aaa; margin-top: 50px;"><p>No active rooms detected.</p></div>
+                    </div>
+                </main>
+            </div>
+            <div class="modal-footer" style="padding: 15px 36px;">
+                <button id="express-fac-exit" class="secondary-btn">Disconnect from World</button>
+            </div>
+        </div>
+
+        <!-- FACILITATOR DASHBOARD (Overcooked) -->
         <div class="landing-content hidden facilitator-dashboard-container" id="landing-facilitator-dashboard">
             <div class="modal-header">
                 <h1 id="facilitator-world-title" style="margin-bottom: 5px;">Mission Control</h1>
@@ -256,6 +329,24 @@
                 <!-- JS populates player items -->
             </div>
         </aside>
+
+        <!-- EXPRESS BUILD HUD -->
+        <div id="express-build-hud" class="hidden express-build-hud">
+            <div class="express-prompt-banner">
+                <div class="express-prompt-icon">🎨</div>
+                <div class="express-prompt-content">
+                    <div id="express-prompt-display" class="express-prompt-text"></div>
+                    <div id="express-subtext-display" class="express-subtext-text"></div>
+                </div>
+            </div>
+            <div class="express-timer-bar">
+                <div class="timer-icon">⏱️</div>
+                <div id="express-timer-text" class="express-timer-text">05:00</div>
+                <div class="timer-progress-bg">
+                    <div id="express-timer-fill" class="express-timer-fill"></div>
+                </div>
+            </div>
+        </div>
 
         <!-- OVERCOOKED HUD -->
         <div id="overcooked-hud" class="hidden">

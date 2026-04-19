@@ -1110,3 +1110,126 @@ header {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #1480b3;
 }
+
+/* ═══════════════════════════════════
+   EXPRESS BUILD MODE
+═══════════════════════════════════ */
+.express-build-hud {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+    pointer-events: none;
+    max-width: 600px;
+    width: 90%;
+}
+
+.express-prompt-banner {
+    background: white;
+    border-radius: 20px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 4px 0 #e5e5e5;
+    border: 2px solid #e5e5e5;
+    width: 100%;
+    pointer-events: auto;
+}
+
+.express-prompt-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.express-prompt-content {
+    flex: 1;
+}
+
+.express-prompt-text {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 800;
+    color: #4b4b4b;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.express-subtext-text {
+    font-size: 0.75rem;
+    color: #999;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.express-timer-bar {
+    background: white;
+    padding: 8px 24px;
+    border-radius: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08), 0 4px 0 #e5e5e5;
+    border: 2px solid #e5e5e5;
+    min-width: 200px;
+    position: relative;
+    overflow: hidden;
+}
+
+.express-timer-text {
+    font-family: monospace;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #4b4b4b;
+}
+
+.express-timer-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #58cc02, #a8e063);
+    transition: width 1s linear;
+}
+
+/* Spectate Mode Banner */
+.express-spectate-banner {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.spectate-banner-content {
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+}
+
+.spectate-icon {
+    font-size: 1.4rem;
+}
+
+.spectate-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.spectate-hint {
+    font-size: 0.78rem;
+    color: #aaa;
+    font-weight: 600;
+}

@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createBrick, BRICK_TYPES, BRICK_COLORS } from './bricks.js';
 import { db } from './firebase-config.js';
 import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction, off } from 'firebase/database';
+import { ExpressBuildMode } from './express-build.js';
 
 class LegoGame {
     constructor() {
@@ -65,6 +66,7 @@ class LegoGame {
         // OVERCOOKED MODE SPECIFIC
         this.gameMode = 'free-build'; 
         this.overcookedRoomId = null; 
+        this.expressBuild = new ExpressBuildMode(this);
         this.isReady = false;
         this.currentRole = null;
         this.gameState = 'WAITING';
@@ -646,10 +648,13 @@ class LegoGame {
         const lobbyEl     = this.overcookedLobbyEl;
         const roomEl      = this.overcookedRoomEl;
         const facEl       = document.getElementById('landing-facilitator-dashboard');
+        const expressLobby = document.getElementById('landing-express-lobby');
+        const expressRoom  = document.getElementById('landing-express-room');
+        const expressFac   = document.getElementById('landing-express-facilitator-dashboard');
         const backBtn     = document.getElementById('global-back-btn');
 
         // Hide all
-        [step1, step2, lobbyEl, roomEl, facEl].forEach(el => el && el.classList.add('hidden'));
+        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac].forEach(el => el && el.classList.add('hidden'));
 
         // Show requested
         const map = { 
@@ -657,7 +662,10 @@ class LegoGame {
             'step2': step2, 
             'overcooked-lobby': lobbyEl, 
             'overcooked-room': roomEl,
-            'facilitator-dashboard': facEl
+            'facilitator-dashboard': facEl,
+            'express-lobby': expressLobby,
+            'express-room': expressRoom,
+            'express-facilitator-dashboard': expressFac
         };
         if (map[name]) map[name].classList.remove('hidden');
 
@@ -700,6 +708,19 @@ class LegoGame {
                 case 'facilitator-dashboard':
                     this.showScreen('step1');
                     break;
+                case 'express-lobby':
+                    if (this._pendingRoomCode && this._isWorldCreator) {
+                        this.showScreen('step2');
+                    } else {
+                        this.showScreen('step1');
+                    }
+                    break;
+                case 'express-room':
+                    this.showScreen('express-lobby');
+                    break;
+                case 'express-facilitator-dashboard':
+                    this.showScreen('step1');
+                    break;
                 default:                this.showScreen('step1'); break;
             }
         };
@@ -719,17 +740,18 @@ class LegoGame {
         }
 
         // ── Mode Selection ───────────────────────────────────────────────────
-        modeFreeBuild.onclick = () => {
-            this.gameMode = 'free-build';
-            modeFreeBuild.classList.add('active');
-            modeOvercooked.classList.remove('active');
+        const modeExpressBuild = document.getElementById('mode-express-build');
+        const allModeItems = [modeFreeBuild, modeOvercooked, modeExpressBuild].filter(Boolean);
+
+        const selectMode = (mode, el) => {
+            this.gameMode = mode;
+            allModeItems.forEach(item => item.classList.remove('active'));
+            el.classList.add('active');
         };
 
-        modeOvercooked.onclick = () => {
-            this.gameMode = 'overcooked';
-            modeOvercooked.classList.add('active');
-            modeFreeBuild.classList.remove('active');
-        };
+        modeFreeBuild.onclick = () => selectMode('free-build', modeFreeBuild);
+        modeOvercooked.onclick = () => selectMode('overcooked', modeOvercooked);
+        if (modeExpressBuild) modeExpressBuild.onclick = () => selectMode('express-build', modeExpressBuild);
 
         // Pre-fill saved name
         if (this.playerName) nameInput.value = this.playerName;
@@ -777,6 +799,21 @@ class LegoGame {
                         }
                         return;
                     }
+
+                    if (meta && meta.gameMode === 'express-build') {
+                        this.gameMode = 'express-build';
+                        this.roomCode = code;
+                        this.worldCode = code;
+
+                        if (this.isFacilitator) {
+                            this.showScreen('express-facilitator-dashboard');
+                            this.expressBuild.setupFacilitatorDashboard(code);
+                        } else {
+                            this.showScreen('express-lobby');
+                            this.expressBuild.setupLobby(code);
+                        }
+                        return;
+                    }
                 } catch (e) {
                     console.warn('Could not read world meta:', e);
                 }
@@ -819,6 +856,21 @@ class LegoGame {
                         if (lobbyCodeEl) lobbyCodeEl.querySelector('span').innerText = code || '-';
                         this.showScreen('overcooked-lobby');
                         this.setupOvercookedLobby();
+                    }
+                } else if (this.gameMode === 'express-build') {
+                    this.roomCode = code;
+                    this.worldCode = code;
+                    if (db && code) {
+                        set(ref(db, `rooms/${code}/meta`), { gameMode: 'express-build', createdAt: Date.now() })
+                            .catch(e => console.warn('Could not write world meta:', e));
+                    }
+
+                    if (this.isFacilitator) {
+                        this.showScreen('express-facilitator-dashboard');
+                        this.expressBuild.setupFacilitatorDashboard(code);
+                    } else {
+                        this.showScreen('express-lobby');
+                        this.expressBuild.setupLobby(code);
                     }
                 } else {
                     if (db && code) {
@@ -1124,6 +1176,17 @@ class LegoGame {
         }
 
         if (this.ghostBrick && this.isPlacementValid) {
+            // EXPRESS BUILD: Zone enforcement
+            if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'BUILDING') {
+                if (!this.expressBuild.isInMyZone(this.ghostBrick.position)) {
+                    return; // Block placement outside zone
+                }
+            }
+            // EXPRESS BUILD: Block placement during spectating
+            if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') {
+                return;
+            }
+
             const brickData = {
                 typeId: this.currentBrickType.id,
                 color: this.currentBrickColor,
@@ -1164,6 +1227,7 @@ class LegoGame {
 
     onRightClick(e) {
         if (this.isFacilitator) return;
+        if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
         if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
             if (!this.canPerform('REMOVER')) return;
         }
@@ -1283,6 +1347,7 @@ class LegoGame {
         document.getElementById('import-btn').onclick = () => this.triggerImport();
         document.getElementById('undo-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
+            if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
             if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             const brick = this.bricks[this.bricks.length - 1];
@@ -1296,6 +1361,7 @@ class LegoGame {
         };
         document.getElementById('clear-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
+            if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
             if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             if (confirm('Are you sure you want to clear EVERYTHING?')) {
