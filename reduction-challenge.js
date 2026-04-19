@@ -12,7 +12,7 @@ import { db } from './firebase-config.js';
 import { ref, onValue, set, push, remove, get, onDisconnect, off } from 'firebase/database';
 import { createBrick, BRICK_TYPES } from './bricks.js';
 
-const DEFAULT_PROMPT = "Build an object that represents how you approach problem-solving.";
+// Removed DEFAULT_PROMPT as per user request
 
 const ZONE_SIZE = 10;
 const ZONE_SPACING = 14;
@@ -40,7 +40,6 @@ export class ReductionChallengeMode {
         this.game = game;
         this.worldCode = null;
         this.roomId = null;
-        this.prompt = null;
         this.currentRound = 'WAITING'; // WAITING | ROUND_1 | REVIEW_1 | ROUND_2 | REVIEW_2 | ROUND_3 | REVIEW_3 | ENDED
         this.maxBricks = { round2: 0, round3: 0 };
         this.myBrickCounts = { round1: 0, round2: 0, round3: 0 };
@@ -270,7 +269,6 @@ export class ReductionChallengeMode {
                     // short delay then to WAITING to clear it
                     setTimeout(() => {
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'WAITING');
-                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/prompt`), null);
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/bricks_round_1`), null);
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/bricks_round_2`), null);
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/bricks_round_3`), null);
@@ -478,6 +476,7 @@ export class ReductionChallengeMode {
     }
 
     async startRound(roundNum) {
+        // Fetch room data
         const roomSnap = await get(ref(db, `rooms/${this.worldCode}/reduction_rooms/${this.roomId}`));
         const roomData = roomSnap.val();
 
@@ -493,10 +492,19 @@ export class ReductionChallengeMode {
             
             this.game.landingScreen.classList.add('hidden');
             this.game.uiContainer.classList.remove('hidden');
+            
+            // Fix canvas size if it was hidden on start
+            this.game.onWindowResize();
+            this.forceRendererResize();
+
             this.game.listenToRoom();
 
             this.expandFloorForZones(players.length);
             this.createAllZoneVisuals(players);
+            
+            // Ensure grid/floor are actually in the scene and visible
+            if (this.game.floor) this.game.floor.visible = true;
+            if (this.game.grid) this.game.grid.visible = true;
 
             // Set up limits map correctly for later rounds
             // (Wait, round 1 max is unlimited)
@@ -559,7 +567,7 @@ export class ReductionChallengeMode {
         let subtext = "Build without limits. Explain everything through the model.";
         if (roundNum === 2) subtext = "Rebuild it. Keep the core meaning, but you have fewer bricks this time.";
         if (roundNum === 3) subtext = "Rebuild it again. Extremely constrained. Strip everything but the absolute essence.";
-        this.game.showModal(`Round ${roundNum}`, `${subtext}`, '📉');
+        this.game.showModal(`Round ${roundNum}`, subtext, '📉');
 
         // Start timer
         const timerKey = `round${roundNum}`;
@@ -611,9 +619,8 @@ export class ReductionChallengeMode {
     // ─── UTILS ────────────────────────────────────────────────────────────
     showBuildHUD(roundNum) {
         const hud = document.getElementById('reduction-build-hud');
-        if (hud) hud.classList.remove('hidden');
-        
-        document.getElementById('reduction-prompt-display').innerText = this.prompt;
+        hud.classList.remove('hidden');
+
         document.getElementById('reduction-round-indicator').innerText = `ROUND ${roundNum}`;
         
         const subMap = {
@@ -776,11 +783,9 @@ export class ReductionChallengeMode {
         this.game.scene.add(this.game.floor);
 
         if (this.game.grid) this.game.scene.remove(this.game.grid);
-        const gridSize = Math.ceil(neededSize / 2) * 2;
-        this.game.grid = new THREE.GridHelper(gridSize, gridSize, 0x000000, 0x000000);
-        this.game.grid.material.opacity = 0.1;
-        this.game.grid.material.transparent = true;
-        this.game.grid.position.set(centerX, 0, 0);
+        const gridSize = Math.max(100, Math.ceil(neededSize / ZONE_SPACING) * ZONE_SPACING);
+        this.game.grid = new THREE.GridHelper(gridSize, gridSize / 2, 0x444444, 0xdddddd);
+        this.game.grid.position.set(centerX, 0.005, 0);
         this.game.scene.add(this.game.grid);
     }
     
