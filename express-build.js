@@ -318,6 +318,15 @@ export class ExpressBuildMode {
         });
 
         document.getElementById('fac-spectate-back').classList.remove('hidden');
+
+        // Expand floor + grid for zone coverage & force resize
+        get(ref(db, `rooms/${world}/express_rooms/${roomId}/players`)).then(snap => {
+            const players = snap.val();
+            if (players) {
+                this.expandFloorForZones(Object.keys(players).length);
+            }
+        });
+        this.forceRendererResize();
     }
 
     // ─── BUILD PHASE ──────────────────────────────────────────────────────────
@@ -330,17 +339,23 @@ export class ExpressBuildMode {
         this.prompt = roomData.prompt || DEFAULT_PROMPTS[Math.floor(Math.random() * DEFAULT_PROMPTS.length)];
         this.subtext = roomData.subtext || PROMPT_SUBTEXT;
 
+        // Assign build zones (must be before enterRoom so floor expansion uses correct count)
+        const players = roomData.players ? Object.values(roomData.players).sort((a, b) => a.id.localeCompare(b.id)) : [];
+        const myIndex = players.findIndex(p => p.id === this.game.playerId);
+        this.zoneIndex = myIndex >= 0 ? myIndex : 0;
+        this.zoneOrigin.set(this.zoneIndex * ZONE_SPACING, 0, 0);
+
         // Enter the building room
         const roomCode = `${this.worldCode}_express_${this.roomId}`;
         this.game.landingScreen.classList.add('hidden');
         this.game.uiContainer.classList.remove('hidden');
         this.game.enterRoom(roomCode);
 
-        // Assign build zones
-        const players = roomData.players ? Object.values(roomData.players).sort((a, b) => a.id.localeCompare(b.id)) : [];
-        const myIndex = players.findIndex(p => p.id === this.game.playerId);
-        this.zoneIndex = myIndex >= 0 ? myIndex : 0;
-        this.zoneOrigin.set(this.zoneIndex * ZONE_SPACING, 0, 0);
+        // Expand floor + grid to cover all build zones
+        this.expandFloorForZones(players.length);
+
+        // Force renderer resize (viewport was hidden, so dimensions may be stale)
+        this.forceRendererResize();
 
         // Write zone index to firebase for other clients
         set(ref(db, `rooms/${this.worldCode}/express_rooms/${this.roomId}/players/${this.game.playerId}/zoneIndex`), this.zoneIndex);
@@ -428,6 +443,55 @@ export class ExpressBuildMode {
         });
         this.zonePlanes = [];
         this.zoneLabels = [];
+    }
+
+    /**
+     * Expand the invisible floor plane and visible grid so that all
+     * player zones are covered by the raycast surface.
+     * 6 players × ZONE_SPACING(14) = 84 studs. We pad generously.
+     */
+    expandFloorForZones(playerCount) {
+        const totalSpan = Math.max(playerCount, 1) * ZONE_SPACING;
+        const neededSize = totalSpan + 40; // extra padding on each side
+        const centerX = ((playerCount - 1) * ZONE_SPACING) / 2;
+
+        // Replace the invisible floor used for raycasting
+        if (this.game.floor) {
+            this.game.scene.remove(this.game.floor);
+        }
+        const floorGeom = new THREE.PlaneGeometry(neededSize, neededSize);
+        floorGeom.rotateX(-Math.PI / 2);
+        this.game.floor = new THREE.Mesh(floorGeom, new THREE.MeshBasicMaterial({ visible: false }));
+        this.game.floor.position.set(centerX, 0, 0);
+        this.game.scene.add(this.game.floor);
+
+        // Replace the visible grid helper
+        if (this.game.grid) {
+            this.game.scene.remove(this.game.grid);
+        }
+        const gridSize = Math.ceil(neededSize / 2) * 2; // round to even
+        this.game.grid = new THREE.GridHelper(gridSize, gridSize, 0x000000, 0x000000);
+        this.game.grid.material.opacity = 0.1;
+        this.game.grid.material.transparent = true;
+        this.game.grid.position.set(centerX, 0, 0);
+        this.game.scene.add(this.game.grid);
+    }
+
+    /**
+     * Force the WebGL renderer to resize to the current canvas container.
+     * Fixes the viewport cutoff when transitioning from the landing screen.
+     */
+    forceRendererResize() {
+        setTimeout(() => {
+            const container = document.getElementById('game-canvas-container');
+            if (container && this.game.renderer) {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                this.game.renderer.setSize(w, h);
+                this.game.camera.aspect = w / h;
+                this.game.camera.updateProjectionMatrix();
+            }
+        }, 50);
     }
 
     showBuildHUD() {
