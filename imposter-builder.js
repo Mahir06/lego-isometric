@@ -48,7 +48,7 @@ export class ImposterBuilderMode {
 
     // ─── LOBBY ──────────────────────────────────────────────────────────────
     setupLobby() {
-        this.worldCode = this.game.worldCode;
+        this.worldCode = this.game.worldCode || "";
         const lobbyCodeEl = document.getElementById('imposter-lobby-code');
         if (lobbyCodeEl) lobbyCodeEl.innerHTML = `WORLD: <span style="color:#1cb0f6; font-weight:900;">${this.worldCode}</span>`;
         const lobbyPlayerEl = document.getElementById('imposter-lobby-player-display');
@@ -209,7 +209,8 @@ export class ImposterBuilderMode {
 
     // ─── FACILITATOR DASHBOARD ────────────────────────────────────────────────
     setupFacilitatorDashboard() {
-        const worldCode = this.game.worldCode;
+        this.worldCode = this.game.worldCode || "";
+        const worldCode = this.worldCode;
         this.game.landingScreen.classList.remove('hidden');
         this.game.showScreen('imposter-facilitator-dashboard');
 
@@ -375,6 +376,7 @@ export class ImposterBuilderMode {
     }
 
     spectateRoom(roomId) {
+        this.worldCode = this.game.worldCode || "";
         this.roomId = roomId;
         this.isEliminated = true; // Facilitators act like eliminated spectators
         
@@ -825,21 +827,28 @@ export class ImposterBuilderMode {
         
         if (data && data.lastEliminated) {
             const { name, role } = data.lastEliminated;
-            this.game.showModal('投票结果 (Round Result)', `**${name}** has been eliminated!\n\nThey were... **${role}**!`, role === 'Imposter' ? '💥' : '😇');
+            this.game.showModal('Round Result', `${name} has been eliminated!\n\nThey were... ${role}!`, role === 'Imposter' ? '💥' : '😇');
         }
 
         // Only master player handles the transition delay
         const actives = data.players ? Object.values(data.players).filter(p => !p.eliminated).sort((a,b)=>a.id.localeCompare(b.id)) : [];
-        if (actives.length > 0 && actives[0].id === this.game.playerId) {
+        const isMaster = actives.length > 0 && actives[0].id === this.game.playerId;
+
+        if (isMaster) {
+            console.log("Master client detected. Transitioning state in 6s...");
             setTimeout(async () => {
+                this.worldCode = this.game.worldCode || "";
                 const refreshedSnap = await get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}`));
                 const rData = refreshedSnap.val();
+                if (!rData) return;
                 
                 // Check win conditions
                 const impId = rData.imposterId;
                 const aliveList = Object.values(rData.players).filter(p => !p.eliminated);
                 const impAlive = aliveList.some(p => p.id === impId);
-                const crewAliveCount = aliveList.filter(p => p.id !== impId).length;
+                const crewAliveCount = aliveList.filter(p => p.id !== impId ? 1 : 0).reduce((a,b)=>a+b, 0);
+
+                console.log(`Revealing done. Imp alive: ${impAlive}, Crew alive: ${crewAliveCount}`);
 
                 if (!impAlive) {
                     set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'CREW');
@@ -848,7 +857,7 @@ export class ImposterBuilderMode {
                     set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'IMPOSTER');
                     set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'ENDED');
                 } else {
-                    // Reset all votes
+                    // Reset all votes for next round
                     Object.keys(rData.players).forEach(pid => {
                         set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/players/${pid}/voteFor`), null);
                     });
