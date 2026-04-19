@@ -22,11 +22,6 @@ body {
     background: var(--bg-color);
     overflow: hidden;
     height: 100vh;
-    cursor: url('custom-cursor.png'), auto;
-}
-
-button, .brick-item, .color-item, [onclick], .close-btn, .action-btn {
-    cursor: url('custom-cursor.png'), pointer !important;
 }
 
 

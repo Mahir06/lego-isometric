@@ -7,6 +7,7 @@ import { db } from './firebase-config.js';
 import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction, off } from 'firebase/database';
 import { ExpressBuildMode } from './express-build.js';
 import { ImposterBuilderMode } from './imposter-builder.js';
+import { ReductionChallengeMode } from './reduction-challenge.js';
 
 class ProductivePlayGame {
     constructor() {
@@ -70,6 +71,7 @@ class ProductivePlayGame {
         this.overcookedRoomId = null; 
         this.expressBuild = new ExpressBuildMode(this);
         this.imposterBuilder = new ImposterBuilderMode(this);
+        this.reductionChallengeMode = new ReductionChallengeMode(this);
         this.isReady = false;
         this.currentRole = null;
         this.gameState = 'WAITING';
@@ -752,7 +754,8 @@ class ProductivePlayGame {
         // ── Mode Selection ───────────────────────────────────────────────────
         const modeExpressBuild = document.getElementById('mode-express-build');
         const modeImposterBuilder = document.getElementById('mode-imposter-builder');
-        const allModeItems = [modeFreeBuild, modeOvercooked, modeExpressBuild, modeImposterBuilder].filter(Boolean);
+        const modeReductionChallenge = document.getElementById('mode-reduction-challenge');
+        const allModeItems = [modeFreeBuild, modeOvercooked, modeExpressBuild, modeImposterBuilder, modeReductionChallenge].filter(Boolean);
 
         const selectMode = (mode, el) => {
             this.gameMode = mode;
@@ -764,6 +767,7 @@ class ProductivePlayGame {
         modeOvercooked.onclick = () => selectMode('overcooked', modeOvercooked);
         if (modeExpressBuild) modeExpressBuild.onclick = () => selectMode('express-build', modeExpressBuild);
         if (modeImposterBuilder) modeImposterBuilder.onclick = () => selectMode('imposter-builder', modeImposterBuilder);
+        if (modeReductionChallenge) modeReductionChallenge.onclick = () => selectMode('reduction-challenge', modeReductionChallenge);
 
         // Pre-fill saved name
         if (this.playerName) nameInput.value = this.playerName;
@@ -841,6 +845,21 @@ class ProductivePlayGame {
                         }
                         return;
                     }
+
+                    if (meta && meta.gameMode === 'reduction-challenge') {
+                        this.gameMode = 'reduction-challenge';
+                        this.roomCode = code;
+                        this.worldCode = code;
+
+                        if (this.isFacilitator) {
+                            this.showScreen('reduction-fac-dashboard');
+                            this.reductionChallengeMode.setupFacilitatorDashboard(code);
+                        } else {
+                            this.showScreen('reduction-lobby');
+                            this.reductionChallengeMode.setupLobby(code);
+                        }
+                        return;
+                    }
                 } catch (e) {
                     console.warn('Could not read world meta:', e);
                 }
@@ -913,6 +932,21 @@ class ProductivePlayGame {
                     } else {
                         this.showScreen('imposter-lobby');
                         this.imposterBuilder.setupLobby(code);
+                    }
+                } else if (this.gameMode === 'reduction-challenge') {
+                    this.roomCode = code;
+                    this.worldCode = code;
+                    if (db && code) {
+                        set(ref(db, `rooms/${code}/meta`), { gameMode: 'reduction-challenge', createdAt: Date.now() })
+                            .catch(e => console.warn('Could not write world meta:', e));
+                    }
+
+                    if (this.isFacilitator) {
+                        this.showScreen('reduction-fac-dashboard');
+                        this.reductionChallengeMode.setupFacilitatorDashboard(code);
+                    } else {
+                        this.showScreen('reduction-lobby');
+                        this.reductionChallengeMode.setupLobby(code);
                     }
                 } else {
                     if (db && code) {
@@ -1193,6 +1227,7 @@ class ProductivePlayGame {
                 
                 this.scene.add(brick);
                 this.bricks.push(brick);
+                if (this.gameMode === 'reduction-challenge') this.reductionChallengeMode.onBrickPlaced();
 
                 // Apply current highlight state to the newly added brick
                 if (this.highlightedPlayerId !== null) {
@@ -1226,6 +1261,16 @@ class ProductivePlayGame {
         }
 
         if (this.ghostBrick && this.isPlacementValid) {
+            // REDUCTION CHALLENGE: Block placement if limits reached
+            if (this.gameMode === 'reduction-challenge' && !this.reductionChallengeMode.canPlaceBrick()) {
+                const textEl = document.getElementById('reduction-brick-counter-text');
+                if (textEl) {
+                    textEl.style.transform = 'scale(1.2)';
+                    setTimeout(() => textEl.style.transform = 'scale(1)', 200);
+                }
+                return;
+            }
+
             // EXPRESS BUILD: Zone enforcement
             if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'BUILDING') {
                 if (!this.expressBuild.isInMyZone(this.ghostBrick.position)) {
@@ -1278,6 +1323,7 @@ class ProductivePlayGame {
                 
                 this.scene.add(brick);
                 this.bricks.push(brick);
+                if (this.gameMode === 'reduction-challenge') this.reductionChallengeMode.onBrickPlaced();
             }
 
             if (this.bricksRef) {
@@ -1313,6 +1359,7 @@ class ProductivePlayGame {
     removeBrick(brick) {
         this.scene.remove(brick);
         this.bricks = this.bricks.filter(b => b !== brick);
+        if (this.gameMode === 'reduction-challenge') this.reductionChallengeMode.onBrickPlaced();
     }
 
     setupUI() {

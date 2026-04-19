@@ -60,6 +60,11 @@
                         <span>Express Build</span>
                         <small>Individual builds from a shared prompt. Reflect, create, then share.</small>
                     </div>
+                    <div class="gallery-item" id="mode-reduction-challenge">
+                        <div class="gallery-icon">📉</div>
+                        <span>Reduction Challenge</span>
+                        <small>Build, break, and rebuild your ideas with fewer bricks each round.</small>
+                    </div>
                     <div class="gallery-item" id="mode-imposter-builder">
                         <div class="gallery-icon">🎭</div>
                         <span>Imposter Builder</span>
@@ -278,6 +283,79 @@
             </div>
             <div class="modal-footer" style="padding: 15px 36px;">
                 <button id="imposter-fac-exit" class="secondary-btn">Disconnect from World</button>
+            </div>
+        </div>
+
+        <!-- REDUCTION CHALLENGE: Lobby -->
+        <div class="landing-content hidden" id="landing-reduction-lobby">
+            <div class="modal-header">
+                <div class="lobby-header-row">
+                    <div>
+                        <h1>Reduction Challenge Lobby</h1>
+                        <p>Pick a team room to join!</p>
+                    </div>
+                    <div class="lobby-meta">
+                        <div class="lobby-room-badge" id="reduction-lobby-code">WORLD: <span>-</span></div>
+                        <div class="lobby-player-name" id="reduction-lobby-player-display">👤 <span></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="reduction-room-grid" class="room-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="create-reduction-room-btn" class="secondary-btn">＋ Create New Room</button>
+            </div>
+        </div>
+
+        <!-- REDUCTION CHALLENGE: Room Lobby (Ready System) -->
+        <div class="landing-content hidden" id="landing-reduction-room">
+            <div class="modal-header">
+                <h1 id="reduction-room-title">Room</h1>
+                <div class="room-status-info">
+                    <span id="reduction-player-count">0/6 Players</span>
+                    <span class="warning-text">Waiting for facilitator to start...</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="reduction-ready-list" class="ready-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="reduction-ready-btn" class="primary-btn">I'M READY!</button>
+                <button id="reduction-leave-btn" class="secondary-btn">Leave Room</button>
+            </div>
+        </div>
+
+        <!-- REDUCTION CHALLENGE: Facilitator Dashboard -->
+        <div class="landing-content hidden facilitator-dashboard-container" id="landing-reduction-facilitator-dashboard">
+            <div class="modal-header">
+                <h1 style="margin-bottom: 5px;">Reduction Challenge — Mission Control</h1>
+                <p style="color: #666; font-weight: 600;">Set a prompt and manage rounds</p>
+            </div>
+            <div class="modal-body fac-layout">
+                <aside class="fac-sidebar">
+                    <section>
+                        <h3 class="fac-section-title">Build Prompt</h3>
+                        <textarea id="reduction-prompt-input" class="room-input" rows="4" placeholder="Enter a prompt for players..." style="width:100%; resize:vertical; font-family: var(--font-main); font-size: 0.85rem; padding: 10px; border-radius: 10px; border: 2px solid #e5e5e5;"></textarea>
+                    </section>
+                    <section style="margin-top: 15px;">
+                        <h3 class="fac-section-title">Controls</h3>
+                        <button id="reduction-fac-start" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px;">▶ Start Round 1 (8m)</button>
+                        <button id="reduction-fac-skip" class="primary-btn" style="width:100%; background:#2ab6f7; border-bottom:4px solid #1480b3; font-size: 0.85rem; padding: 12px; margin-bottom: 12px; display: none;">⏩ End Timer Early</button>
+                        <button id="reduction-fac-next" class="primary-btn" style="width:100%; background:#58cc02; border-bottom:4px solid #58a700; font-size: 0.85rem; padding: 12px; margin-bottom: 12px; display: none;">➡️ Start Next Round</button>
+                        <button id="reduction-fac-gallery" class="primary-btn" style="width:100%; background:#a855f7; border-bottom:4px solid #7c2de0; font-size: 0.85rem; padding: 12px; margin-bottom: 12px; display: none;">🖼️ View Final Gallery</button>
+                        <button id="reduction-fac-reset" class="primary-btn" style="width:100%; background:#ff9f00; border-bottom:4px solid #cc7a00; font-size: 0.85rem; padding: 12px; margin-top: 12px;">🔄 End Game (Lobby)</button>
+                    </section>
+                </aside>
+                <main class="fac-main-panel">
+                    <h3 class="fac-section-title">Live Active Rooms</h3>
+                    <div id="reduction-fac-room-list">
+                        <div style="text-align: center; color: #aaa; margin-top: 50px;"><p>No active rooms detected.</p></div>
+                    </div>
+                </main>
+            </div>
+            <div class="modal-footer" style="padding: 15px 36px;">
+                <button id="reduction-fac-exit" class="secondary-btn">Disconnect from World</button>
             </div>
         </div>
 
@@ -500,11 +578,77 @@
             </div>
         </div>
 
+        <!-- REDUCTION CHALLENGE HUD -->
+        <div id="reduction-build-hud" class="hidden express-build-hud">
+            <div class="express-prompt-banner">
+                <div class="express-prompt-icon">📉</div>
+                <div class="express-prompt-content">
+                    <div id="reduction-prompt-display" class="express-prompt-text"></div>
+                    <div id="reduction-subtext-display" class="express-subtext-text"></div>
+                </div>
+            </div>
+            <!-- Timer Bar -->
+            <div class="express-timer-bar" style="margin-top: 10px;">
+                <div class="timer-icon">⏱️</div>
+                <div id="reduction-timer-text" class="express-timer-text">08:00</div>
+                <div class="timer-progress-bg">
+                    <div id="reduction-timer-fill" class="express-timer-fill"></div>
+                </div>
+                <div id="reduction-round-indicator" style="font-weight: 800; font-size: 0.8rem; color: #1cb0f6; margin-left: 10px;">ROUND 1</div>
+            </div>
+            <!-- Brick Counter -->
+            <div id="reduction-brick-counter-card" class="express-timer-bar hidden" style="background: #fff0f0; border-color: #ffcccc; margin-top: 10px;">
+                <div class="timer-icon">🧱</div>
+                <div id="reduction-brick-counter-text" class="express-timer-text" style="color: #ff4b4b;">0 / 25</div>
+                <div style="font-weight: 800; font-size: 0.8rem; color: #cc0000; margin-left:8px;">BRICKS LEFT</div>
+            </div>
+        </div>
+
+        <!-- REDUCTION CHALLENGE: Facilitator Gallery Modal -->
+        <div id="reduction-gallery-modal" class="modal-overlay hidden" style="z-index: 3000;">
+            <div class="modal-content duolingo-style" style="max-width: 900px; text-align: center;">
+                <h1 style="color: #a855f7; margin-bottom: 5px;">Final Gallery</h1>
+                <p style="color: #666; font-size: 1.1rem; margin-bottom: 20px;">Review all transformation stages built by the players.</p>
+                
+                <div id="reduction-gallery-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; text-align: left; max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+                    <!-- JS injects gallery cards here -->
+                </div>
+                <button id="reduction-gallery-close" class="primary-btn" style="width: 100%; background: #a855f7; border-bottom-color: #7c2de0;">CLOSE GALLERY</button>
+            </div>
+        </div>
+
+        <!-- REDUCTION CHALLENGE: Single Player View Modal (3 Columns) -->
+        <div id="reduction-player-modal" class="modal-overlay hidden" style="z-index: 3500; background: rgba(0,0,0,0.8);">
+            <div class="modal-content duolingo-style" style="max-width: 95vw; width: 1200px; text-align: center; height: 85vh; display: flex; flex-direction: column;">
+                <h1 id="reduction-player-name-title" style="color: #1cb0f6; margin-bottom: 10px;">Player Name</h1>
+                
+                <div style="display: flex; gap: 20px; flex-grow: 1; min-height: 0;">
+                    <!-- Round 1 -->
+                    <div style="flex: 1; display: flex; flex-direction: column; background: #f0faff; border-radius: 16px; border: 2px solid #bce1f8; overflow: hidden;">
+                        <h3 style="padding: 15px; margin: 0; background: #e1f5fe; border-bottom: 2px solid #bce1f8;">Round 1 (<span id="reduction-p-r1-count">0</span> bricks)</h3>
+                        <div id="reduction-canvas-r1" style="flex-grow: 1; position: relative;"></div>
+                    </div>
+                    <!-- Round 2 -->
+                    <div style="flex: 1; display: flex; flex-direction: column; background: #fffae0; border-radius: 16px; border: 2px solid #fce8a1; overflow: hidden;">
+                        <h3 style="padding: 15px; margin: 0; background: #fff8eb; border-bottom: 2px solid #fce8a1;">Round 2 (<span id="reduction-p-r2-count">0</span> bricks)</h3>
+                        <div id="reduction-canvas-r2" style="flex-grow: 1; position: relative;"></div>
+                    </div>
+                    <!-- Round 3 -->
+                    <div style="flex: 1; display: flex; flex-direction: column; background: #fff0f0; border-radius: 16px; border: 2px solid #ffcccc; overflow: hidden;">
+                        <h3 style="padding: 15px; margin: 0; background: #ffebeb; border-bottom: 2px solid #ffcccc;">Round 3 (<span id="reduction-p-r3-count">0</span> bricks)</h3>
+                        <div id="reduction-canvas-r3" style="flex-grow: 1; position: relative;"></div>
+                    </div>
+                </div>
+                <button id="reduction-player-close" class="primary-btn" style="margin-top: 20px;">BACK TO LOBBY</button>
+            </div>
+        </div>
+
         <!-- REFERENCE PANEL (Round 2) -->
         <div id="reference-panel" class="hidden">
             <div class="reference-header">
-                <span>Reference Build</span>
+                <span id="reference-panel-title">Reference Build</span>
                 <button id="close-reference-btn" class="close-ref-btn">✕</button>
+
             </div>
             <div id="reference-canvas-container"></div>
             <div class="reference-footer">
