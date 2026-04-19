@@ -654,10 +654,13 @@ class LegoGame {
         const expressLobby = document.getElementById('landing-express-lobby');
         const expressRoom  = document.getElementById('landing-express-room');
         const expressFac   = document.getElementById('landing-express-facilitator-dashboard');
+        const imposterLobby = document.getElementById('landing-imposter-lobby');
+        const imposterRoom  = document.getElementById('landing-imposter-room');
+        const imposterFac   = document.getElementById('landing-imposter-facilitator-dashboard');
         const backBtn     = document.getElementById('global-back-btn');
 
         // Hide all
-        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac].forEach(el => el && el.classList.add('hidden'));
+        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac, imposterLobby, imposterRoom, imposterFac].forEach(el => el && el.classList.add('hidden'));
 
         // Show requested
         const map = { 
@@ -668,7 +671,10 @@ class LegoGame {
             'facilitator-dashboard': facEl,
             'express-lobby': expressLobby,
             'express-room': expressRoom,
-            'express-facilitator-dashboard': expressFac
+            'express-facilitator-dashboard': expressFac,
+            'imposter-lobby': imposterLobby,
+            'imposter-room': imposterRoom,
+            'imposter-facilitator-dashboard': imposterFac
         };
         if (map[name]) map[name].classList.remove('hidden');
 
