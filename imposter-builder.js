@@ -50,7 +50,7 @@ export class ImposterBuilderMode {
     setupLobby() {
         this.worldCode = this.game.worldCode;
         const lobbyCodeEl = document.getElementById('imposter-lobby-code');
-        if (lobbyCodeEl) lobbyCodeEl.innerHTML = `WORLD: <span style="color:#fff; font-weight:900;">${this.worldCode}</span>`;
+        if (lobbyCodeEl) lobbyCodeEl.innerHTML = `WORLD: <span style="color:#1cb0f6; font-weight:900;">${this.worldCode}</span>`;
         const lobbyPlayerEl = document.getElementById('imposter-lobby-player-display');
         if (lobbyPlayerEl) lobbyPlayerEl.innerHTML = `👤 <span>${this.game.playerName}</span>`;
 
@@ -164,6 +164,8 @@ export class ImposterBuilderMode {
                 this.onSpectateStarted();
             } else if (status === 'VOTING' && this.gameState === 'SPECTATING') {
                 this.onVotingStarted();
+            } else if (status === 'REVEALING') {
+                this.onRevealingStarted();
             } else if (status === 'ENDED') {
                 this.onGameEnded();
             }
@@ -428,6 +430,13 @@ export class ImposterBuilderMode {
     // ─── BUILD PHASE ──────────────────────────────────────────────────────────
     async onBuildStarted() {
         this.gameState = 'BUILDING';
+
+        // Hide any open voting/revelation modals
+        const votingModal = document.getElementById('imposter-voting-modal');
+        if (votingModal) votingModal.classList.add('hidden');
+        
+        const modalOverlay = document.querySelector('.modal-overlay:not(.hidden)');
+        if (modalOverlay) modalOverlay.classList.add('hidden');
 
         const roomSnap = await get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}`));
         const roomData = roomSnap.val();
@@ -772,11 +781,11 @@ export class ImposterBuilderMode {
         // Tally votes
         const tallies = {};
         actives.forEach(p => {
-            tallies[p.voteFor] = (tallies[p.voteFor] || 0) + 1;
+            if (p.voteFor) tallies[p.voteFor] = (tallies[p.voteFor] || 0) + 1;
         });
 
         // Find max votes
-        let maxVotes = 0;
+        let maxVotes = -1;
         let eliminatedId = null;
         Object.keys(tallies).forEach(pid => {
             if (tallies[pid] > maxVotes) {
@@ -785,30 +794,68 @@ export class ImposterBuilderMode {
             }
         });
 
+        if (!eliminatedId && actives.length > 0) eliminatedId = actives[0].id; // Fallback
+
+        const eliminatedPlayer = allPlayers[eliminatedId];
+        const isImposter = eliminatedId === imposterId;
+
         // Mark player as eliminated
         set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/players/${eliminatedId}/eliminated`), true);
 
-        // Check win conditions
-        const remainingCrew = actives.filter(p => p.id !== eliminatedId && p.id !== imposterId).length;
-        const imposterSurvives = eliminatedId !== imposterId;
+        // Store result for revealing
+        set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/lastEliminated`), {
+            name: eliminatedPlayer ? eliminatedPlayer.name : "Someone",
+            role: isImposter ? "Imposter" : "Innocent"
+        });
 
-        if (!imposterSurvives) {
-            // CREW WINS
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'CREW');
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'ENDED');
-        } else if (remainingCrew <= 1) { // 1 crew + 1 imposter = 2 total
-            // IMPOSTER WINS
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'IMPOSTER');
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'ENDED');
-        } else {
-            // Round continues
-            // Clear votes
-            Object.keys(allPlayers).forEach(pid => {
-                set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/players/${pid}/voteFor`), null);
-            });
-            // Back to building
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/startedAt`), Date.now());
-            set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'BUILDING');
+        // Transition to REVEALING
+        set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'REVEALING');
+    }
+
+    async onRevealingStarted() {
+        this.gameState = 'REVEALING';
+        if (this.timerInterval) clearInterval(this.timerInterval);
+
+        // Hide voting modal
+        const votingModal = document.getElementById('imposter-voting-modal');
+        if (votingModal) votingModal.classList.add('hidden');
+
+        const roomSnap = await get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}`));
+        const data = roomSnap.val();
+        
+        if (data && data.lastEliminated) {
+            const { name, role } = data.lastEliminated;
+            this.game.showModal('投票结果 (Round Result)', `**${name}** has been eliminated!\n\nThey were... **${role}**!`, role === 'Imposter' ? '💥' : '😇');
+        }
+
+        // Only master player handles the transition delay
+        const actives = data.players ? Object.values(data.players).filter(p => !p.eliminated).sort((a,b)=>a.id.localeCompare(b.id)) : [];
+        if (actives.length > 0 && actives[0].id === this.game.playerId) {
+            setTimeout(async () => {
+                const refreshedSnap = await get(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}`));
+                const rData = refreshedSnap.val();
+                
+                // Check win conditions
+                const impId = rData.imposterId;
+                const aliveList = Object.values(rData.players).filter(p => !p.eliminated);
+                const impAlive = aliveList.some(p => p.id === impId);
+                const crewAliveCount = aliveList.filter(p => p.id !== impId).length;
+
+                if (!impAlive) {
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'CREW');
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'ENDED');
+                } else if (crewAliveCount <= 1) {
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'IMPOSTER');
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'ENDED');
+                } else {
+                    // Reset all votes
+                    Object.keys(rData.players).forEach(pid => {
+                        set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/players/${pid}/voteFor`), null);
+                    });
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/startedAt`), Date.now());
+                    set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/status`), 'BUILDING');
+                }
+            }, 6000); // 6 second reveal
         }
     }
 

@@ -1057,20 +1057,28 @@ class LegoGame {
             document.getElementById('inventory-panel')?.classList.add('hidden');
         }
         
-        // Register Player
+        // Register Player (Only if not a facilitator)
         if (db) {
-            const playerRef = ref(db, `rooms/${code}/players/${this.playerId}`);
-            set(playerRef, {
-                id: this.playerId,
-                name: this.playerName || `Builder ${this.playerId.substring(2, 7).toUpperCase()}`,
-                lastActive: Date.now()
-            });
+            if (!this.isFacilitator) {
+                const playerRef = ref(db, `rooms/${code}/players/${this.playerId}`);
+                set(playerRef, {
+                    id: this.playerId,
+                    name: this.playerName || `Builder ${this.playerId.substring(2, 7).toUpperCase()}`,
+                    lastActive: Date.now()
+                });
 
-            // Listen for player changes
-            const playersRef = ref(db, `rooms/${code}/players`);
-            onValue(playersRef, (snapshot) => {
-                this.updatePlayerList(snapshot.val());
-            });
+                // Listen for player changes
+                const playersRef = ref(db, `rooms/${code}/players`);
+                onValue(playersRef, (snapshot) => {
+                    this.updatePlayerList(snapshot.val());
+                });
+            } else {
+                // For facilitators, we still want to see who is in the room
+                const playersRef = ref(db, `rooms/${code}/players`);
+                onValue(playersRef, (snapshot) => {
+                    this.updatePlayerList(snapshot.val());
+                });
+            }
 
             // SYNCED STATE: Listen for shared attributes (Color, Rotation)
             const stateRef = ref(db, `rooms/${code}/state`);
