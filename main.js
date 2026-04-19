@@ -6,6 +6,7 @@ import { createBrick, BRICK_TYPES, BRICK_COLORS } from './bricks.js';
 import { db } from './firebase-config.js';
 import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onDisconnect, runTransaction, off } from 'firebase/database';
 import { ExpressBuildMode } from './express-build.js';
+import { ImposterBuilderMode } from './imposter-builder.js';
 
 class LegoGame {
     constructor() {
@@ -67,6 +68,7 @@ class LegoGame {
         this.gameMode = 'free-build'; 
         this.overcookedRoomId = null; 
         this.expressBuild = new ExpressBuildMode(this);
+        this.imposterBuilder = new ImposterBuilderMode(this);
         this.isReady = false;
         this.currentRole = null;
         this.gameState = 'WAITING';
@@ -815,6 +817,21 @@ class LegoGame {
                         }
                         return;
                     }
+
+                    if (meta && meta.gameMode === 'imposter-builder') {
+                        this.gameMode = 'imposter-builder';
+                        this.roomCode = code;
+                        this.worldCode = code;
+
+                        if (this.isFacilitator) {
+                            this.showScreen('imposter-facilitator-dashboard');
+                            this.imposterBuilder.setupFacilitatorDashboard(code);
+                        } else {
+                            this.showScreen('imposter-lobby');
+                            this.imposterBuilder.setupLobby(code);
+                        }
+                        return;
+                    }
                 } catch (e) {
                     console.warn('Could not read world meta:', e);
                 }
@@ -872,6 +889,21 @@ class LegoGame {
                     } else {
                         this.showScreen('express-lobby');
                         this.expressBuild.setupLobby(code);
+                    }
+                } else if (this.gameMode === 'imposter-builder') {
+                    this.roomCode = code;
+                    this.worldCode = code;
+                    if (db && code) {
+                        set(ref(db, `rooms/${code}/meta`), { gameMode: 'imposter-builder', createdAt: Date.now() })
+                            .catch(e => console.warn('Could not write world meta:', e));
+                    }
+
+                    if (this.isFacilitator) {
+                        this.showScreen('imposter-facilitator-dashboard');
+                        this.imposterBuilder.setupFacilitatorDashboard(code);
+                    } else {
+                        this.showScreen('imposter-lobby');
+                        this.imposterBuilder.setupLobby(code);
                     }
                 } else {
                     if (db && code) {
@@ -1187,6 +1219,17 @@ class LegoGame {
             if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') {
                 return;
             }
+            
+            // IMPOSTER BUILDER: Zone enforcement
+            if (this.gameMode === 'imposter-builder' && this.imposterBuilder.gameState === 'BUILDING') {
+                if (!this.imposterBuilder.isInMyZone(this.ghostBrick.position)) {
+                    return; // Block placement outside zone
+                }
+            }
+            // IMPOSTER BUILDER: Block placement during spectating/voting/ended
+            if (this.gameMode === 'imposter-builder' && this.imposterBuilder.gameState !== 'BUILDING') {
+                return;
+            }
 
             const brickData = {
                 typeId: this.currentBrickType.id,
@@ -1229,6 +1272,7 @@ class LegoGame {
     onRightClick(e) {
         if (this.isFacilitator) return;
         if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
+        if (this.gameMode === 'imposter-builder' && this.imposterBuilder.gameState !== 'BUILDING') return;
         if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
             if (!this.canPerform('REMOVER')) return;
         }
@@ -1349,6 +1393,7 @@ class LegoGame {
         document.getElementById('undo-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
+            if (this.gameMode === 'imposter-builder' && this.imposterBuilder.gameState !== 'BUILDING') return;
             if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             const brick = this.bricks[this.bricks.length - 1];
@@ -1363,6 +1408,7 @@ class LegoGame {
         document.getElementById('clear-btn').onclick = (e) => {
             if (this.gameMode === 'overcooked' && this.timerExpired) return;
             if (this.gameMode === 'express-build' && this.expressBuild.gameState === 'SPECTATING') return;
+            if (this.gameMode === 'imposter-builder' && this.imposterBuilder.gameState !== 'BUILDING') return;
             if (!this.canPerform('REMOVER')) return;
             e.stopPropagation();
             if (confirm('Are you sure you want to clear EVERYTHING?')) {
