@@ -176,8 +176,6 @@ export class ReductionChallengeMode {
                     `;
                     listEl.appendChild(item);
                 });
-                document.getElementById('reduction-player-count').innerText = `${arr.length}/6 Players`;
-            }
         });
 
         // Listen for round state changes
@@ -188,6 +186,22 @@ export class ReductionChallengeMode {
                 this.handleRoundChange(round);
             }
         });
+    }
+
+    onPlayersUpdated(players) {
+        if (!players) return;
+        const arr = Object.values(players).sort((a, b) => a.id.localeCompare(b.id));
+        
+        // Update my zone index in case it changed (usually it shouldn't, but for safety)
+        const myIndex = arr.findIndex(p => p.id === this.game.playerId);
+        if (myIndex >= 0) {
+            this.zoneIndex = myIndex;
+            this.zoneOrigin.set(this.zoneIndex * ZONE_SPACING, 0, 0);
+        }
+
+        // Refresh visuals
+        this.expandFloorForZones(arr.length);
+        this.createAllZoneVisuals(arr);
     }
 
     // ─── FACILITATOR DASHBOARD ────────────────────────────────────────────
@@ -487,8 +501,9 @@ export class ReductionChallengeMode {
             this.zoneIndex = myIndex >= 0 ? myIndex : 0;
             this.zoneOrigin.set(this.zoneIndex * ZONE_SPACING, 0, 0);
 
-            // Connect to correct firebase path
+            // Connect to correct firebase paths
             this.game.firebasePathBase = `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/bricks_round_1`;
+            this.game.firebasePlayersPath = `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/players`;
             
             this.game.landingScreen.classList.add('hidden');
             this.game.uiContainer.classList.remove('hidden');
@@ -533,6 +548,7 @@ export class ReductionChallengeMode {
 
             // Connect to new round's firebase path
             this.game.firebasePathBase = `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/bricks_round_${roundNum}`;
+            this.game.firebasePlayersPath = `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/players`;
             this.game.listenToRoom();
             
             // Fetch old round bricks for reference

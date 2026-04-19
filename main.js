@@ -1012,6 +1012,11 @@ class ProductivePlayGame {
             item.appendChild(eyeBtn);
             this.playerListEl.appendChild(item);
         });
+
+        // HOOK: Notify game modes
+        if (this.gameMode === 'reduction-challenge' && this.reductionChallengeMode.onPlayersUpdated) {
+            this.reductionChallengeMode.onPlayersUpdated(players);
+        }
     }
 
     // Deterministic colour per player ID
@@ -1082,8 +1087,7 @@ class ProductivePlayGame {
         console.log('Entering Room:', code);
         this.roomCode = code;
 
-        // DEFENSIVE: Ensure worldCode is set. If this is an overcooked room (with underscore),
-        // extract the first part as worldCode.
+        // DEFENSIVE: Ensure worldCode is set.
         if (code.includes('_')) {
             this.worldCode = code.split('_')[0];
         } else {
@@ -1101,29 +1105,20 @@ class ProductivePlayGame {
             document.getElementById('inventory-panel')?.classList.add('hidden');
         }
         
-        // Register Player (Only if not a facilitator)
+        this.listenToRoom();
+    }
+
+    listenToRoom() {
+        const code = this.roomCode;
+        if (!code) return;
+
+        // Clean up existing listeners if any
+        if (this.bricksRef) off(this.bricksRef);
+        
+        // Fix camera aspect ratio and renderer size after showing
+        setTimeout(() => this.onWindowResize(), 10);
+        
         if (db) {
-            if (!this.isFacilitator) {
-                const playerRef = ref(db, `rooms/${code}/players/${this.playerId}`);
-                set(playerRef, {
-                    id: this.playerId,
-                    name: this.playerName || `Builder ${this.playerId.substring(2, 7).toUpperCase()}`,
-                    lastActive: Date.now()
-                });
-
-                // Listen for player changes
-                const playersRef = ref(db, `rooms/${code}/players`);
-                onValue(playersRef, (snapshot) => {
-                    this.updatePlayerList(snapshot.val());
-                });
-            } else {
-                // For facilitators, we still want to see who is in the room
-                const playersRef = ref(db, `rooms/${code}/players`);
-                onValue(playersRef, (snapshot) => {
-                    this.updatePlayerList(snapshot.val());
-                });
-            }
-
             // SYNCED STATE: Listen for shared attributes (Color, Rotation)
             const stateRef = ref(db, `rooms/${code}/state`);
             onValue(stateRef, (snapshot) => {
@@ -1134,29 +1129,7 @@ class ProductivePlayGame {
                 if (state.currentColor !== undefined && state.currentColor !== this.currentBrickColor) {
                     this.currentBrickColor = state.currentColor;
                     changed = true;
-                    
-                    // Update UI active state for color
-                    document.querySelectorAll('.color-item').forEach(el => {
-                        // This is a bit hacky but works since we don't have a direct map to elements
-                        const swatch = el.querySelector('.color-swatch');
-                        if (swatch) {
-                            const hex = swatch.style.backgroundColor; // This returns "rgb(r, g, b)"
-                            // Better: check against the BRICK_COLORS data
-                            // Actually, we can just re-run parts of setupUI or find the one with active class
-                        }
-                    });
-                    // Simpler: just refresh the color items' active state
-                    document.querySelectorAll('.color-item').forEach(el => {
-                        const swatch = el.querySelector('.color-swatch');
-                        if (swatch) {
-                            const itemColor = BRICK_COLORS.find(c => `#${c.hex.toString(16).padStart(6, '0')}` === this._rgbToHex(swatch.style.backgroundColor));
-                            if (itemColor && itemColor.hex === this.currentBrickColor) {
-                                el.classList.add('active');
-                            } else {
-                                el.classList.remove('active');
-                            }
-                        }
-                    });
+                    this.updateUIActiveStates();
                 }
                 
                 if (state.currentRotation !== undefined && state.currentRotation !== this.currentRotation) {
@@ -1176,7 +1149,6 @@ class ProductivePlayGame {
                         this.currentBrickType = newType;
                         changed = true;
                         
-                        // Update UI active state for brick items
                         document.querySelectorAll('.brick-item').forEach(el => {
                             if (el.innerText === newType.id) el.classList.add('active');
                             else el.classList.remove('active');
@@ -1185,24 +1157,17 @@ class ProductivePlayGame {
                 }
                 
                 if (changed) {
-                    // Force update for Builders/others seeing the movement
                     this.updateGhostBrick();
                 }
             });
-        }
-        
-        // Fix camera aspect ratio and renderer size after showing
-        setTimeout(() => this.onWindowResize(), 10);
-        
-        // Connect to Firebase
-        if (db) {
-            this.bricksRef = ref(db, `rooms/${code}/bricks`);
+
+            // SYNC BRICKS
+            const bricksPath = this.firebasePathBase || `rooms/${code}/bricks`;
+            console.log('Syncing bricks from:', bricksPath);
+            this.bricksRef = ref(db, bricksPath);
             
-            // Listen for additions
             onChildAdded(this.bricksRef, (snapshot) => {
                 const data = snapshot.val();
-                
-                // RECONCILIATION: Check if we have an optimistic brick at this spot
                 const optimisticBrick = this.bricks.find(b => 
                     b.userData.isOptimistic &&
                     Math.abs(b.position.x - data.x) < 0.01 && 
@@ -1217,15 +1182,11 @@ class ProductivePlayGame {
                     return;
                 }
 
-                if (this.bricks.some(b => b.userData.firebaseKey === snapshot.key)) {
-                    return;
-                }
+                if (this.bricks.some(b => b.userData.firebaseKey === snapshot.key)) return;
                 
                 const type = BRICK_TYPES.find(t => t.id === data.typeId);
-                if (!type) {
-                    console.error('Unknown brick type from Firebase:', data.typeId);
-                    return;
-                }
+                if (!type) return;
+
                 const brick = createBrick(type, data.color, data.opacity || 1.0);
                 brick.position.set(data.x, data.y, data.z);
                 brick.rotation.y = data.ry;
@@ -1238,14 +1199,12 @@ class ProductivePlayGame {
                 this.bricks.push(brick);
                 if (this.gameMode === 'reduction-challenge') this.reductionChallengeMode.onBrickPlaced();
 
-                // Apply current highlight state to the newly added brick
                 if (this.highlightedPlayerId !== null) {
                     const isTarget = brick.userData.playerId === this.highlightedPlayerId;
                     this._setBrickOpacity(brick, isTarget ? null : 0.07);
                 }
             });
 
-            // Listen for removals
             onChildRemoved(this.bricksRef, (snapshot) => {
                 const brick = this.bricks.find(b => b.userData.firebaseKey === snapshot.key);
                 if (brick) {
@@ -1253,8 +1212,26 @@ class ProductivePlayGame {
                     this.bricks = this.bricks.filter(b => b !== brick);
                 }
             });
+
+            // SYNC PLAYERS
+            const playersPath = this.firebasePlayersPath || `rooms/${code}/players`;
+            console.log('Syncing players from:', playersPath);
+            const playersRef = ref(db, playersPath);
+            onValue(playersRef, (snapshot) => {
+                this.updatePlayerList(snapshot.val());
+            });
+
+            if (!this.isFacilitator) {
+                const myRef = ref(db, `${playersPath}/${this.playerId}`);
+                set(myRef, {
+                    id: this.playerId,
+                    name: this.playerName || `Builder ${this.playerId.substring(2, 7).toUpperCase()}`,
+                    lastActive: Date.now()
+                });
+                onDisconnect(myRef).remove();
+            }
         } else {
-            console.warn('Firebase not connected. Project is in Local/Offline mode.');
+            console.warn('Firebase not connected.');
         }
     }
 
