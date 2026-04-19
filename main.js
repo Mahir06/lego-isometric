@@ -1,4 +1,4 @@
-console.log('LEGO Builder V4 Loaded');
+console.log('Productive Play V4 Loaded');
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
@@ -10,7 +10,7 @@ import { ImposterBuilderMode } from './imposter-builder.js';
 
 class LegoGame {
     constructor() {
-        console.log('Initializing LegoGame V4...');
+        console.log('Initializing Productive Play V4...');
         this.canvas = document.getElementById('game-canvas');
         this.container = document.getElementById('game-canvas-container');
         this.landingScreen = document.getElementById('landing-screen');
@@ -20,9 +20,9 @@ class LegoGame {
         
         window.antigravity = this; // Expose for HTML inline handlers
         // Player Identity — unique per tab session to allow multi-tab testing
-        this.playerId = sessionStorage.getItem('lego_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
-        sessionStorage.setItem('lego_player_id', this.playerId);
-        this.playerName = localStorage.getItem('lego_player_name') || '';
+        this.playerId = sessionStorage.getItem('productive_play_player_id') || 'p_' + Math.random().toString(36).substring(2, 8);
+        sessionStorage.setItem('productive_play_player_id', this.playerId);
+        this.playerName = localStorage.getItem('productive_play_player_name') || '';
         this.highlightedPlayerId = null;
         
         this.scene = new THREE.Scene();
@@ -778,7 +778,7 @@ class LegoGame {
             if (code.length < 1) { alert('Please enter a world code to join.'); return; }
             if (code.length !== 6) { alert('World code must be 6 characters.'); return; }
             this.playerName = getPlayerName();
-            localStorage.setItem('lego_player_name', this.playerName);
+            localStorage.setItem('productive_play_player_name', this.playerName);
             this._pendingRoomCode = code;
             this._isWorldCreator = false;
             const facToggle = document.getElementById('join-as-facilitator');
@@ -853,7 +853,7 @@ class LegoGame {
         createBtn.onclick = () => {
             console.log('Create World clicked');
             this.playerName = getPlayerName();
-            localStorage.setItem('lego_player_name', this.playerName);
+            localStorage.setItem('productive_play_player_name', this.playerName);
             this._pendingRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             this._isWorldCreator = true;
             this.showScreen('step2');
@@ -1559,7 +1559,7 @@ class LegoGame {
         const blobObj = new Blob([data], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blobObj);
-        link.download = `lego_model_${Date.now()}.json`;
+        link.download = `productive_play_model_${Date.now()}.json`;
         link.click();
         
         this.selectionBox.visible = false;
@@ -1647,7 +1647,7 @@ class LegoGame {
                 }
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.download = `lego_build_${Date.now()}.png`;
+                link.download = `productive_play_build_${Date.now()}.png`;
                 link.href = url;
                 link.click();
                 setTimeout(() => URL.revokeObjectURL(url), 100);
