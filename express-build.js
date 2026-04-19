@@ -188,6 +188,8 @@ export class ExpressBuildMode {
                 this.onBuildStarted();
             } else if (status === 'SPECTATING' && this.gameState === 'BUILDING') {
                 this.onSpectateStarted();
+            } else if (status === 'ENDED') {
+                this.onGameEnded();
             }
         });
     }
@@ -236,6 +238,36 @@ export class ExpressBuildMode {
                 });
             }
         };
+
+        // End Game — reset all rooms to WAITING and kick everyone back to lobby
+        const resetBtn = document.getElementById('express-fac-reset');
+        if (resetBtn) {
+            resetBtn.onclick = async () => {
+                if (!confirm('End the game? This will send ALL players back to the lobby.')) return;
+                const snapshot = await get(ref(db, `rooms/${worldCode}/express_rooms`));
+                const rooms = snapshot.val();
+                if (rooms) {
+                    Object.values(rooms).forEach(room => {
+                        set(ref(db, `rooms/${worldCode}/express_rooms/${room.id}/status`), 'ENDED');
+                    });
+
+                    // After a short delay, reset rooms to WAITING so new games can start
+                    setTimeout(async () => {
+                        const snap2 = await get(ref(db, `rooms/${worldCode}/express_rooms`));
+                        const rooms2 = snap2.val();
+                        if (rooms2) {
+                            Object.values(rooms2).forEach(room => {
+                                set(ref(db, `rooms/${worldCode}/express_rooms/${room.id}/status`), 'WAITING');
+                                // Clear old bricks and prompt
+                                set(ref(db, `rooms/${worldCode}/express_rooms/${room.id}/prompt`), null);
+                                set(ref(db, `rooms/${worldCode}/express_rooms/${room.id}/subtext`), null);
+                                set(ref(db, `rooms/${worldCode}/express_rooms/${room.id}/startedAt`), null);
+                            });
+                        }
+                    }, 2000);
+                }
+            };
+        }
 
         // Time setting
         const timeInput = document.getElementById('express-fac-time');
@@ -479,19 +511,25 @@ export class ExpressBuildMode {
 
     /**
      * Force the WebGL renderer to resize to the current canvas container.
-     * Fixes the viewport cutoff when transitioning from the landing screen.
+     * Fires at staggered intervals to catch CSS transitions finishing.
      */
     forceRendererResize() {
-        setTimeout(() => {
+        const doResize = () => {
             const container = document.getElementById('game-canvas-container');
             if (container && this.game.renderer) {
                 const w = container.clientWidth;
                 const h = container.clientHeight;
-                this.game.renderer.setSize(w, h);
-                this.game.camera.aspect = w / h;
-                this.game.camera.updateProjectionMatrix();
+                if (w > 0 && h > 0) {
+                    this.game.renderer.setSize(w, h);
+                    this.game.camera.aspect = w / h;
+                    this.game.camera.updateProjectionMatrix();
+                }
             }
-        }, 50);
+        };
+        // Fire at multiple intervals to catch CSS layout settling
+        setTimeout(doResize, 50);
+        setTimeout(doResize, 200);
+        setTimeout(doResize, 500);
     }
 
     showBuildHUD() {
@@ -562,6 +600,45 @@ export class ExpressBuildMode {
 
         // Zoom out to show all zones
         this.zoomOutToAll();
+
+        // Resize after sidebar collapse (CSS transition takes ~300ms)
+        this.forceRendererResize();
+    }
+
+    /**
+     * Facilitator ended the game — send everyone back to the lobby.
+     */
+    onGameEnded() {
+        this.gameState = 'WAITING';
+        if (this.timerInterval) clearInterval(this.timerInterval);
+
+        // Clean up scene
+        this.cleanupZoneVisuals();
+        this.hideBuildHUD();
+
+        // Remove spectate banner
+        const banner = document.getElementById('express-spectate-banner');
+        if (banner) banner.classList.add('hidden');
+
+        // Detach brick listeners
+        if (this.game.bricksRef) off(this.game.bricksRef);
+        this.game.bricks.forEach(b => this.game.scene.remove(b));
+        this.game.bricks = [];
+
+        // Return to Express Build lobby
+        this.game.landingScreen.classList.remove('hidden');
+        this.game.uiContainer.classList.add('hidden');
+        this.game.showScreen('express-lobby');
+
+        // Restore sidebar visibility
+        this.game.uiContainer.classList.remove('sidebar-collapsed');
+        document.getElementById('sidebar')?.classList.remove('hidden');
+
+        // Restore toolbar buttons
+        ['undo-btn', 'clear-btn', 'export-btn', 'import-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.classList.remove('hidden');
+        });
     }
 
     lockBuildingControls() {
