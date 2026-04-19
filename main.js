@@ -102,7 +102,7 @@ class LegoGame {
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
         const d = 10;
-        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 4000);
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(0, 0, 0);
     }

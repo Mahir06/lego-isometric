@@ -484,7 +484,7 @@ export class ExpressBuildMode {
      */
     expandFloorForZones(playerCount) {
         const totalSpan = Math.max(playerCount, 1) * ZONE_SPACING;
-        const neededSize = totalSpan + 40; // extra padding on each side
+        const neededSize = totalSpan + 800; // massive padding to prevent grid clipping when zoomed out
         const centerX = ((playerCount - 1) * ZONE_SPACING) / 2;
 
         // Replace the invisible floor used for raycasting
