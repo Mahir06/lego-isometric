@@ -245,15 +245,17 @@ export class ImposterBuilderMode {
                 grid.appendChild(card);
             });
 
-            // Fast forward detection
-            let canFastForward = false;
-            activeRooms.forEach(r => {
-                if (r.status === 'BUILDING' || r.status === 'SPECTATING' || r.status === 'REVEALING') canFastForward = true;
-            });
+            // Action button detection
+            let hasWaiting = activeRooms.some(r => r.status === 'WAITING');
+            let hasRevealing = activeRooms.some(r => r.status === 'REVEALING');
+            let hasBuilding = activeRooms.some(r => r.status === 'BUILDING' || r.status === 'SPECTATING');
 
             const startBtn = document.getElementById('imposter-fac-start');
             if (startBtn) {
-                if (canFastForward) {
+                if (hasRevealing) {
+                    startBtn.innerText = "START NEXT ROUND ➡️";
+                    startBtn.style.backgroundColor = "#8bc34a"; // Green
+                } else if (hasBuilding) {
                     startBtn.innerText = "Fast Forward Phase ⏭️";
                     startBtn.style.backgroundColor = "#ff9800"; // Orange
                 } else {
