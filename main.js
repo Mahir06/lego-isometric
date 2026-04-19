@@ -660,10 +660,15 @@ class ProductivePlayGame {
         const imposterLobby = document.getElementById('landing-imposter-lobby');
         const imposterRoom  = document.getElementById('landing-imposter-room');
         const imposterFac   = document.getElementById('landing-imposter-facilitator-dashboard');
+        
+        const reductionLobby = document.getElementById('landing-reduction-lobby');
+        const reductionRoom  = document.getElementById('landing-reduction-room');
+        const reductionFac   = document.getElementById('landing-reduction-facilitator-dashboard');
+        
         const backBtn     = document.getElementById('global-back-btn');
 
         // Hide all
-        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac, imposterLobby, imposterRoom, imposterFac].forEach(el => el && el.classList.add('hidden'));
+        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac, imposterLobby, imposterRoom, imposterFac, reductionLobby, reductionRoom, reductionFac].forEach(el => el && el.classList.add('hidden'));
 
         // Show requested
         const map = { 
@@ -677,7 +682,11 @@ class ProductivePlayGame {
             'express-facilitator-dashboard': expressFac,
             'imposter-lobby': imposterLobby,
             'imposter-room': imposterRoom,
-            'imposter-facilitator-dashboard': imposterFac
+            'imposter-facilitator-dashboard': imposterFac,
+            'reduction-lobby': reductionLobby,
+            'reduction-room': reductionRoom,
+            'reduction-fac-dashboard': reductionFac
+
         };
         if (map[name]) map[name].classList.remove('hidden');
 
