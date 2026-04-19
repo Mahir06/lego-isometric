@@ -248,7 +248,7 @@ export class ImposterBuilderMode {
             // Fast forward detection
             let canFastForward = false;
             activeRooms.forEach(r => {
-                if (r.status === 'BUILDING' || r.status === 'SPECTATING') canFastForward = true;
+                if (r.status === 'BUILDING' || r.status === 'SPECTATING' || r.status === 'REVEALING') canFastForward = true;
             });
 
             const startBtn = document.getElementById('imposter-fac-start');
@@ -293,6 +293,23 @@ export class ImposterBuilderMode {
                         } else if (room.status === 'SPECTATING') {
                             isFastForwarding = true;
                             set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/status`), 'VOTING');
+                        } else if (room.status === 'REVEALING') {
+                            isFastForwarding = true;
+                            // Force transition logic
+                            const aliveList = room.players ? Object.values(room.players).filter(p => !p.eliminated) : [];
+                            const impId = room.imposterId;
+                            const impAlive = aliveList.some(p => p.id === impId);
+                            const crewAliveCount = aliveList.filter(p => p.id !== impId).length;
+
+                            if (!impAlive || crewAliveCount <= 1) {
+                                set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/status`), 'ENDED');
+                            } else {
+                                Object.keys(room.players).forEach(pid => {
+                                    set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/players/${pid}/voteFor`), null);
+                                });
+                                set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/startedAt`), Date.now());
+                                set(ref(db, `rooms/${worldCode}/imposter_rooms/${room.id}/status`), 'BUILDING');
+                            }
                         }
                     }
                 });
@@ -846,9 +863,9 @@ export class ImposterBuilderMode {
                 const impId = rData.imposterId;
                 const aliveList = Object.values(rData.players).filter(p => !p.eliminated);
                 const impAlive = aliveList.some(p => p.id === impId);
-                const crewAliveCount = aliveList.filter(p => p.id !== impId ? 1 : 0).reduce((a,b)=>a+b, 0);
+                const crewAliveCount = aliveList.filter(p => p.id !== impId).length;
 
-                console.log(`Revealing done. Imp alive: ${impAlive}, Crew alive: ${crewAliveCount}`);
+                console.log(`Revealing done. Imp alive: ${impAlive}, Crew alive count: ${crewAliveCount}`);
 
                 if (!impAlive) {
                     set(ref(db, `rooms/${this.worldCode}/imposter_rooms/${this.roomId}/winner`), 'CREW');
