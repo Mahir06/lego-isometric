@@ -11,6 +11,7 @@ import { ImposterBuilderMode } from './imposter-builder.js';
 class ProductivePlayGame {
     constructor() {
         console.log('Initializing Productive Play V4...');
+        this.previewRenderer = new BrickPreviewRenderer();
         this.canvas = document.getElementById('game-canvas');
         this.container = document.getElementById('game-canvas-container');
         this.landingScreen = document.getElementById('landing-screen');
@@ -1332,7 +1333,16 @@ class ProductivePlayGame {
             BRICK_TYPES.filter(t => t.cat === cat).forEach(type => {
                 const item = document.createElement('div');
                 item.className = 'brick-item';
-                item.innerText = type.id;
+                
+                const previewImg = document.createElement('img');
+                previewImg.className = 'brick-preview';
+                previewImg.dataset.typeId = type.id;
+                item.appendChild(previewImg);
+                
+                const label = document.createElement('span');
+                label.innerText = type.id;
+                item.appendChild(label);
+
                 item.onclick = () => {
                     if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD') {
                         if (!this.canPerform('BUILDER')) return;
@@ -1361,6 +1371,10 @@ class ProductivePlayGame {
             });
         });
 
+        // Generate initial previews
+        this.updateBrickPreviews();
+
+
         const colorSelector = document.getElementById('color-selector');
         colorSelector.innerHTML = '';
         const colorTitle = document.createElement('div');
@@ -1383,6 +1397,7 @@ class ProductivePlayGame {
             item.onclick = () => {
                 if (!this.canPerform('COLOR_PICKER')) return;
                 this.currentBrickColor = color.hex;
+                this.updateBrickPreviews();
                 
                 // SYNC COLOR: If in Overcooked Round 2, sync to other players
                 if (this.gameMode === 'overcooked' && this.gameState === 'ROUND_2_BUILD' && this.roomCode && db) {
@@ -2628,6 +2643,73 @@ class ProductivePlayGame {
         }
         return true;
     }
+
+    updateBrickPreviews() {
+        const previews = document.querySelectorAll('.brick-preview');
+        previews.forEach(img => {
+            const typeId = img.dataset.typeId;
+            const type = BRICK_TYPES.find(t => t.id === typeId);
+            if (type) {
+                img.src = this.previewRenderer.generate(type, this.currentBrickColor);
+            }
+        });
+    }
 }
+
+/**
+ * Helper to render isometric snapshots of bricks for the sidebar
+ */
+class BrickPreviewRenderer {
+    constructor() {
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = 120;
+        this.canvas.height = 100;
+        this.renderer = new THREE.WebGLRenderer({ 
+            canvas: this.canvas, 
+            alpha: true,
+            antialias: true 
+        });
+        
+        this.scene = new THREE.Scene();
+        
+        // Orthographic camera for isometric look
+        const aspect = this.canvas.width / this.canvas.height;
+        const d = 4.5; // View size
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.camera.position.set(10, 10, 10);
+        this.camera.lookAt(0, 0, 0);
+        
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight.position.set(5, 10, 7);
+        this.scene.add(dirLight);
+    }
+    
+    generate(type, colorHex) {
+        // Remove old brick
+        while(this.scene.children.length > 2) {
+            const child = this.scene.children[2];
+            this.scene.remove(child);
+            child.traverse(c => {
+                if (c.geometry) c.geometry.dispose();
+                if (c.material) c.material.dispose();
+            });
+        }
+        
+        // Create full quality brick mesh
+        const brick = createBrick(type, colorHex, 1.0);
+        
+        // Center it
+        const box = new THREE.Box3().setFromObject(brick);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        brick.position.sub(center);
+        
+        this.scene.add(brick);
+        this.renderer.render(this.scene, this.camera);
+        return this.canvas.toDataURL();
+    }
+}
+
 
 new ProductivePlayGame();
