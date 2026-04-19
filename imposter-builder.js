@@ -158,7 +158,7 @@ export class ImposterBuilderMode {
         const statusRef = ref(db, `rooms/${this.worldCode}/imposter_rooms/${roomId}/status`);
         onValue(statusRef, (snapshot) => {
             const status = snapshot.val();
-            if (status === 'BUILDING' && (this.gameState === 'WAITING' || this.gameState === 'VOTING')) {
+            if (status === 'BUILDING' && (this.gameState === 'WAITING' || this.gameState === 'VOTING' || this.gameState === 'REVEALING')) {
                 this.onBuildStarted();
             } else if (status === 'SPECTATING' && this.gameState === 'BUILDING') {
                 this.onSpectateStarted();
@@ -453,6 +453,9 @@ export class ImposterBuilderMode {
         // Hide any open voting/revelation modals
         const votingModal = document.getElementById('imposter-voting-modal');
         if (votingModal) votingModal.classList.add('hidden');
+
+        const instructionModal = document.getElementById('instruction-modal');
+        if (instructionModal) instructionModal.classList.add('hidden');
         
         const modalOverlay = document.querySelector('.modal-overlay:not(.hidden)');
         if (modalOverlay) modalOverlay.classList.add('hidden');
