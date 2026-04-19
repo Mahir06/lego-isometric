@@ -1,5 +1,6 @@
-import { db, ref, set, get, onValue, remove, off, push } from './main.js';
 import * as THREE from 'three';
+import { db } from './firebase-config.js';
+import { ref, onValue, set, push, remove, get, onDisconnect, off } from 'firebase/database';
 
 const DEFAULT_IMPOSTER_PAIRS = [
     { majority: "Apple", imposter: "Orange" },
