@@ -3,14 +3,14 @@ import { getDatabase } from 'firebase/database';
 
 // Replace with your Firebase project configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDJMwR8ubiKgUds5dZb2Bi09Otua9Rf37U",
-    authDomain: "lego-isometric.firebaseapp.com",
-    databaseURL: "https://lego-isometric-default-rtdb.firebaseio.com",
-    projectId: "lego-isometric",
-    storageBucket: "lego-isometric.firebasestorage.app",
-    messagingSenderId: "277172742147",
-    appId: "1:277172742147:web:32f87c4535ea5897344636",
-    measurementId: "G-08GD9RPKR0"
+    apiKey: "AIzaSyC5352lJRRXhFAbxRLWGQQH88Tnkrzga_g",
+    authDomain: "productive-play-a2e74.firebaseapp.com",
+    databaseURL: "https://productive-play-a2e74-default-rtdb.firebaseio.com",
+    projectId: "productive-play-a2e74",
+    storageBucket: "productive-play-a2e74.firebasestorage.app",
+    messagingSenderId: "576866949571",
+    appId: "1:576866949571:web:2747811b6c2a08b7a94576",
+    measurementId: "G-TF8M6MZZGX"
 };
 
 let db = null;
