@@ -8,7 +8,7 @@ import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onD
 import { ExpressBuildMode } from './express-build.js';
 import { ImposterBuilderMode } from './imposter-builder.js';
 
-class LegoGame {
+class ProductivePlayGame {
     constructor() {
         console.log('Initializing Productive Play V4...');
         this.canvas = document.getElementById('game-canvas');
@@ -2630,4 +2630,4 @@ class LegoGame {
     }
 }
 
-new LegoGame();
+new ProductivePlayGame();
