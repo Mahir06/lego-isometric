@@ -1196,7 +1196,8 @@ class ProductivePlayGame {
         
         // Connect to Firebase
         if (db) {
-            this.bricksRef = ref(db, `rooms/${code}/bricks`);
+            const path = this.firebasePathBase || `rooms/${code}/bricks`;
+            this.bricksRef = ref(db, path);
             
             // Listen for additions
             onChildAdded(this.bricksRef, (snapshot) => {

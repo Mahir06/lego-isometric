@@ -205,17 +205,13 @@ export class ReductionChallengeMode {
         const resetBtn = document.getElementById('reduction-fac-reset');
 
         startBtn.onclick = async () => {
-            const promptInput = document.getElementById('reduction-prompt-input').value.trim();
-            const prompt = promptInput || DEFAULT_PROMPT;
-
-            if (!confirm(`Start Round 1?\n\n"${prompt}"`)) return;
+            if (!confirm(`Start Round 1?`)) return;
 
             const snapshot = await get(ref(db, `rooms/${worldCode}/reduction_rooms`));
             const rooms = snapshot.val();
             if (rooms) {
                 Object.values(rooms).forEach(room => {
                     if (room.status === 'WAITING' || room.round === 'WAITING') {
-                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/prompt`), prompt);
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'ROUND_1');
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/startedAt`), Date.now());
                     }
@@ -482,10 +478,8 @@ export class ReductionChallengeMode {
     }
 
     async startRound(roundNum) {
-        // Fetch prompt and max limits
         const roomSnap = await get(ref(db, `rooms/${this.worldCode}/reduction_rooms/${this.roomId}`));
         const roomData = roomSnap.val();
-        this.prompt = roomData.prompt || DEFAULT_PROMPT;
 
         if (roundNum === 1) {
             // First time joining the physical game world
@@ -565,7 +559,7 @@ export class ReductionChallengeMode {
         let subtext = "Build without limits. Explain everything through the model.";
         if (roundNum === 2) subtext = "Rebuild it. Keep the core meaning, but you have fewer bricks this time.";
         if (roundNum === 3) subtext = "Rebuild it again. Extremely constrained. Strip everything but the absolute essence.";
-        this.game.showModal(`Round ${roundNum}`, `${this.prompt}\n\n${subtext}`, '📉');
+        this.game.showModal(`Round ${roundNum}`, `${subtext}`, '📉');
 
         // Start timer
         const timerKey = `round${roundNum}`;
