@@ -744,7 +744,8 @@ class LegoGame {
 
         // ── Mode Selection ───────────────────────────────────────────────────
         const modeExpressBuild = document.getElementById('mode-express-build');
-        const allModeItems = [modeFreeBuild, modeOvercooked, modeExpressBuild].filter(Boolean);
+        const modeImposterBuilder = document.getElementById('mode-imposter-builder');
+        const allModeItems = [modeFreeBuild, modeOvercooked, modeExpressBuild, modeImposterBuilder].filter(Boolean);
 
         const selectMode = (mode, el) => {
             this.gameMode = mode;
@@ -755,6 +756,7 @@ class LegoGame {
         modeFreeBuild.onclick = () => selectMode('free-build', modeFreeBuild);
         modeOvercooked.onclick = () => selectMode('overcooked', modeOvercooked);
         if (modeExpressBuild) modeExpressBuild.onclick = () => selectMode('express-build', modeExpressBuild);
+        if (modeImposterBuilder) modeImposterBuilder.onclick = () => selectMode('imposter-builder', modeImposterBuilder);
 
         // Pre-fill saved name
         if (this.playerName) nameInput.value = this.playerName;
