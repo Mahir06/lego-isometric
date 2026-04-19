@@ -176,6 +176,9 @@ export class ReductionChallengeMode {
                     `;
                     listEl.appendChild(item);
                 });
+                const countEl = document.getElementById('reduction-player-count');
+                if (countEl) countEl.innerText = `${arr.length}/6 Players`;
+            }
         });
 
         // Listen for round state changes
