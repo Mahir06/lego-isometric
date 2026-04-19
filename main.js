@@ -533,6 +533,13 @@ class ProductivePlayGame {
 
                 const status = this.checkPlacement(this.ghostBrick);
                 this.isPlacementValid = status.isValid;
+
+                // REDUCTION CHALLENGE: Mode-specific constraints
+                if (this.isPlacementValid && this.gameMode === 'reduction-challenge') {
+                    if (!this.reductionChallengeMode.canPlaceBrick(this.ghostBrick.position)) {
+                        this.isPlacementValid = false;
+                    }
+                }
                 
                 // Show ghost if we have a valid target
                 if (this.ghostBrick) this.ghostBrick.visible = true;
@@ -1248,7 +1255,7 @@ class ProductivePlayGame {
 
         if (this.ghostBrick && this.isPlacementValid) {
             // REDUCTION CHALLENGE: Block placement if limits reached
-            if (this.gameMode === 'reduction-challenge' && !this.reductionChallengeMode.canPlaceBrick()) {
+            if (this.gameMode === 'reduction-challenge' && !this.reductionChallengeMode.canPlaceBrick(this.ghostBrick.position)) {
                 const textEl = document.getElementById('reduction-brick-counter-text');
                 if (textEl) {
                     textEl.style.transform = 'scale(1.2)';

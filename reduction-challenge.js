@@ -203,8 +203,10 @@ export class ReductionChallengeMode {
         }
 
         // Refresh visuals
-        this.expandFloorForZones(arr.length);
-        this.createAllZoneVisuals(arr);
+        if (arr.length > 0) {
+            this.expandFloorForZones(arr.length);
+            this.createAllZoneVisuals(arr);
+        }
     }
 
     // ─── FACILITATOR DASHBOARD ────────────────────────────────────────────
@@ -220,16 +222,29 @@ export class ReductionChallengeMode {
         const exitBtn = document.getElementById('reduction-fac-exit');
         const resetBtn = document.getElementById('reduction-fac-reset');
 
+        // Fixed navigation: ensure facilitator returns to dashboard correctly
+        const backBtn = document.getElementById('fac-spectate-back');
+        if (backBtn) {
+            backBtn.onclick = () => {
+                backBtn.classList.add('hidden');
+                document.getElementById('reduction-fac-dashboard').classList.remove('hidden');
+                this.game.enterRoom(this.worldCode);
+            };
+        }
+
         startBtn.onclick = async () => {
             if (!confirm(`Start Round 1?`)) return;
 
             const snapshot = await get(ref(db, `rooms/${worldCode}/reduction_rooms`));
             const rooms = snapshot.val();
             if (rooms) {
+                const now = Date.now();
+                const duration = TIMES.round1 * 1000;
                 Object.values(rooms).forEach(room => {
                     if (room.status === 'WAITING' || room.round === 'WAITING') {
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'ROUND_1');
-                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/startedAt`), Date.now());
+                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/startedAt`), now);
+                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/endTime`), now + duration);
                     }
                 });
             }
@@ -248,6 +263,8 @@ export class ReductionChallengeMode {
                     if (room.round === 'ROUND_1') set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'REVIEW_1');
                     if (room.round === 'ROUND_2') set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'REVIEW_2');
                     if (room.round === 'ROUND_3') set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), 'REVIEW_3');
+                    // Clear timer
+                    set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/endTime`), null);
                 });
             }
         };
@@ -256,21 +273,24 @@ export class ReductionChallengeMode {
             const snapshot = await get(ref(db, `rooms/${worldCode}/reduction_rooms`));
             const rooms = snapshot.val();
             let nextRoundTarget = null;
+            let duration = 0;
 
             if (rooms) {
                 const firstRoom = Object.values(rooms)[0];
-                if (firstRoom.round === 'REVIEW_1') nextRoundTarget = 'ROUND_2';
-                else if (firstRoom.round === 'REVIEW_2') nextRoundTarget = 'ROUND_3';
-                else if (firstRoom.round === 'REVIEW_3') nextRoundTarget = 'ENDED';
+                if (firstRoom.round === 'REVIEW_1') { nextRoundTarget = 'ROUND_2'; duration = TIMES.round2 * 1000; }
+                else if (firstRoom.round === 'REVIEW_2') { nextRoundTarget = 'ROUND_3'; duration = TIMES.round3 * 1000; }
+                else if (firstRoom.round === 'REVIEW_3') { nextRoundTarget = 'ENDED'; }
 
                 if (!nextRoundTarget) return;
 
                 if (!confirm(`Start ${nextRoundTarget}?`)) return;
 
+                const now = Date.now();
                 Object.values(rooms).forEach(room => {
                     if (room.round.startsWith('REVIEW_')) {
                         set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/round`), nextRoundTarget);
-                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/startedAt`), Date.now());
+                        set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/startedAt`), now);
+                        if (duration > 0) set(ref(db, `rooms/${worldCode}/reduction_rooms/${room.id}/endTime`), now + duration);
                     }
                 });
             }
@@ -521,7 +541,7 @@ export class ReductionChallengeMode {
             this.createAllZoneVisuals(players);
             
             // Ensure grid/floor are actually in the scene and visible
-            if (this.game.floor) this.game.floor.visible = true;
+if (this.game.floor) this.game.floor.visible = true;
             if (this.game.grid) this.game.grid.visible = true;
 
             // Set up limits map correctly for later rounds
@@ -574,9 +594,11 @@ export class ReductionChallengeMode {
             this.unlockBuildingControls();
         }
 
-        // Camera setup
+        // Camera setup: Unified isometric view
+        this.game.camera.up.set(0, 1, 0);
         this.game.controls.target.set(this.zoneOrigin.x, 0, this.zoneOrigin.z);
-        this.game.camera.position.set(this.zoneOrigin.x + 10, 10, this.zoneOrigin.z + 10);
+        // Use 20,20,20 offset for perfect 45/45/45 isometric alignment
+        this.game.camera.position.set(this.zoneOrigin.x + 20, 20, this.zoneOrigin.z + 20);
         this.game.camera.lookAt(this.zoneOrigin.x, 0, this.zoneOrigin.z);
         this.game.controls.update();
 
@@ -588,12 +610,46 @@ export class ReductionChallengeMode {
         if (roundNum === 3) subtext = "Rebuild it again. Extremely constrained. Strip everything but the absolute essence.";
         this.game.showModal(`Round ${roundNum}`, subtext, '📉');
 
-        // Start timer
-        const timerKey = `round${roundNum}`;
-        this.startTimer(TIMES[timerKey], () => {
-            // Self-report end of round (facilitator usually triggers this, but fallback)
-            set(ref(db, `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/round`), `REVIEW_${roundNum}`);
+        // SYNCED TIMER: Wait for endTime from Firebase
+        const timeRef = ref(db, `rooms/${this.worldCode}/reduction_rooms/${this.roomId}/endTime`);
+        onValue(timeRef, (snapshot) => {
+            const endTime = snapshot.val();
+            if (endTime) {
+                this.startSyncedTimer(endTime, () => {
+                    // Fallback round end if facilitator is gone
+                    if (!this.game.isFacilitator) {
+                        // (Usually facilitator handles this via handleRoundChange)
+                    }
+                });
+            }
         });
+    }
+
+    startSyncedTimer(endTime, onComplete) {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        
+        const timerEl = document.getElementById('reduction-timer');
+        const update = () => {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+            
+            if (timerEl) {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                
+                if (remaining < 30) timerEl.style.color = '#ff4757';
+                else timerEl.style.color = 'white';
+            }
+
+            if (remaining <= 0) {
+                clearInterval(this.timerInterval);
+                if (onComplete) onComplete();
+            }
+        };
+        
+        update();
+        this.timerInterval = setInterval(update, 1000);
     }
 
     startReviewPhase(roundNum) {
@@ -673,15 +729,23 @@ export class ReductionChallengeMode {
         }
     }
 
-    canPlaceBrick() {
+    canPlaceBrick(pos) {
         if (!this.currentRound.startsWith('ROUND_')) return false;
-        
-        if (this.currentRound === 'ROUND_2') {
-            return this.game.brickCount < this.maxBricks.round2;
-        } else if (this.currentRound === 'ROUND_3') {
-            return this.game.brickCount < this.maxBricks.round3;
+
+        // ZONE ENFORCEMENT: Check coordinates
+        if (!this.game.isFacilitator && pos) {
+            if (!this.isInMyZone(pos)) {
+                this.game.showToast("Cannot build outside your zone!", "error");
+                return false;
+            }
         }
-        return true; // Round 1 is unlimited
+        
+        const currentMax = this.maxBricks[`round${this.currentRound.replace('ROUND_', '')}`] || Infinity;
+        if (this.game.bricks.filter(b => b.userData.playerId === this.game.playerId).length >= currentMax) {
+            this.game.showToast(`Brick limit reached (${currentMax} max)`, "warning");
+            return false;
+        }
+        return true; 
     }
     
     onBrickPlaced() {
@@ -690,23 +754,8 @@ export class ReductionChallengeMode {
     }
 
     startTimer(seconds, callback) {
+        // Redundant - we use startSyncedTimer via endTime listener now
         if (this.timerInterval) clearInterval(this.timerInterval);
-        const endTime = Date.now() + seconds * 1000;
-        const timerEl = document.getElementById('reduction-timer-text');
-        const fillEl = document.getElementById('reduction-timer-fill');
-
-        this.timerInterval = setInterval(() => {
-            const timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            if (timerEl) timerEl.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            if (fillEl) fillEl.style.width = (timeLeft / seconds * 100) + '%';
-
-            if (timeLeft <= 0) {
-                clearInterval(this.timerInterval);
-                callback();
-            }
-        }, 1000);
     }
 
     lockBuildingControls() {
@@ -791,21 +840,20 @@ export class ReductionChallengeMode {
     }
 
     expandFloorForZones(playerCount) {
-        const neededSize = (Math.max(playerCount, 1) * ZONE_SPACING) + 800;
         const centerX = ((playerCount - 1) * ZONE_SPACING) / 2;
 
+        if (this.game.grid) this.game.scene.remove(this.game.grid);
+        // Use standard large grid instead of dynamic scaling to prevent "too big" feeling
+        this.game.grid = new THREE.GridHelper(200, 200, 0xdddddd, 0x888888);
+        this.game.grid.position.set(centerX, 0.005, 0); 
+        this.game.scene.add(this.game.grid);
+        
         if (this.game.floor) this.game.scene.remove(this.game.floor);
-        const floorGeom = new THREE.PlaneGeometry(neededSize, neededSize);
+        const floorGeom = new THREE.PlaneGeometry(2000, 2000);
         floorGeom.rotateX(-Math.PI / 2);
         this.game.floor = new THREE.Mesh(floorGeom, new THREE.MeshBasicMaterial({ visible: false }));
         this.game.floor.position.set(centerX, 0, 0);
         this.game.scene.add(this.game.floor);
-
-        if (this.game.grid) this.game.scene.remove(this.game.grid);
-        const gridSize = Math.max(100, Math.ceil(neededSize / ZONE_SPACING) * ZONE_SPACING);
-        this.game.grid = new THREE.GridHelper(gridSize, gridSize / 2, 0x444444, 0xdddddd);
-        this.game.grid.position.set(centerX, 0.005, 0);
-        this.game.scene.add(this.game.grid);
     }
     
     zoomOutToAll() {
