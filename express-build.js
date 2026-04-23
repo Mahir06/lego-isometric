@@ -31,7 +31,7 @@ const BUILD_DURATION = 300;  // 5 minutes in seconds
 const ZONE_COLORS = [
     0xff4757, // red
     0x1cb0f6, // blue
-    0x58cc02, // green
+    0x026BF6, // brand blue
     0xff9f00, // amber
     0xa855f7, // purple
     0xff6b81, // pink

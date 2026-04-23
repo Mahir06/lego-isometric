@@ -1,6 +1,6 @@
 :root {
-    --primary-color: #58cc02;
-    --primary-dark: #46a302;
+    --primary-color: #026BF6;
+    --primary-dark: #025AD2;
     --bg-color: #ffffff;
     --sidebar-bg: #f7f7f7;
     --text-color: #3c3c3c;
@@ -166,7 +166,7 @@ body {
     gap: 6px;
 }
 .lobby-room-badge span {
-    color: #58cc02;
+    color: #026BF6;
     font-size: 0.88rem;
     letter-spacing: 1.5px;
     font-family: var(--font-display);
@@ -206,16 +206,16 @@ body {
     width: 100%;
 }
 .room-input:focus {
-    border-color: #58cc02;
+    border-color: #026BF6;
     background: white;
-    box-shadow: 0 0 0 4px rgba(88, 204, 2, 0.12);
+    box-shadow: 0 0 0 4px rgba(2, 107, 246, 0.12);
 }
 .room-input::placeholder { font-weight: 500; color: #c8c8c8; }
 
 /* ── Buttons ──────────────────────────────────────────────────────────── */
 .primary-btn {
     font-family: var(--font-display);
-    background: #58cc02;
+    background: #026BF6;
     color: white;
     border: none;
     padding: 15px 28px;
@@ -223,12 +223,12 @@ body {
     font-size: 1rem;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 5px 0 #46a302;
+    box-shadow: 0 5px 0 #025AD2;
     transition: transform 0.1s, box-shadow 0.1s;
     width: 100%;
 }
-.primary-btn:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #46a302; }
-.primary-btn:active { transform: translateY(3px);  box-shadow: 0 1px 0 #46a302; }
+.primary-btn:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #025AD2; }
+.primary-btn:active { transform: translateY(3px);  box-shadow: 0 1px 0 #025AD2; }
 
 .primary-btn.secondary-style {
     background: #1cb0f6;
@@ -281,13 +281,13 @@ body {
 }
 
 .gallery-item.active {
-    border-color: #58cc02;
-    background: #f7ffef;
-    box-shadow: 0 5px 0 #58cc02;
+    border-color: #026BF6;
+    background: #f0f7ff;
+    box-shadow: 0 5px 0 #026BF6;
 }
 .gallery-item.active:hover {
     transform: translateY(-2px);
-    box-shadow: 0 7px 0 #58cc02;
+    box-shadow: 0 7px 0 #026BF6;
 }
 .gallery-item.disabled {
     opacity: 0.5;
@@ -366,9 +366,9 @@ header {
 }
 
 .room-badge {
-    background: #f7ffef;
-    border: 2px solid #58cc02;
-    color: #46a302;
+    background: #f0f7ff;
+    border: 2px solid #026BF6;
+    color: #025AD2;
     padding: 5px 12px;
     border-radius: 50px; /* Pill style */
     font-family: var(--font-display);
@@ -377,12 +377,12 @@ header {
     display: flex;
     align-items: center;
     gap: 6px;
-    box-shadow: 0 3px 0 #58cc02;
+    box-shadow: 0 3px 0 #026BF6;
     white-space: nowrap;
 }
 
 #room-code-display {
-    color: #58cc02;
+    color: #026BF6;
     background: white;
     padding: 1px 8px;
     border-radius: 6px;
@@ -409,9 +409,9 @@ header {
 }
 
 .sidebar-toggle:hover {
-    border-color: #58cc02;
-    color: #58cc02;
-    box-shadow: 0 3px 0 #58cc02;
+    border-color: #026BF6;
+    color: #026BF6;
+    box-shadow: 0 3px 0 #026BF6;
     transform: translateY(-1px);
 }
 
@@ -444,10 +444,10 @@ header {
 }
 
 .tool-btn:hover {
-    border-color: #58cc02;
-    box-shadow: 0 4px 0 #58cc02;
+    border-color: #026BF6;
+    box-shadow: 0 4px 0 #026BF6;
     transform: translateY(-2px);
-    background: #f7ffef;
+    background: #f0f7ff;
 }
 
 .tool-btn:active {
@@ -673,8 +673,8 @@ header {
 }
 
 .player-item.is-me {
-    border-color: #58cc02;
-    background: #f7ffef;
+    border-color: #026BF6;
+    background: #f0f7ff;
 }
 
 .player-item.highlighted {
@@ -796,8 +796,8 @@ header {
 }
 
 .ready-item.is-ready {
-    border-color: #58cc02;
-    background: #f7ffef;
+    border-color: #026BF6;
+    background: #f0f7ff;
 }
 
 .ready-status {
@@ -1023,8 +1023,8 @@ header {
 
 .fac-room-card-premium:hover {
     transform: translateY(-2px);
-    border-color: #58cc02;
-    box-shadow: 0 6px 0 #e8f5e9;
+    border-color: #026BF6;
+    box-shadow: 0 6px 0 #f0f7ff;
 }
 
 .fac-room-card-premium .room-status-dot {
@@ -1034,7 +1034,7 @@ header {
 }
 
 .status-waiting { background: #ff9f00; }
-.status-build { background: #58cc02; }
+.status-build { background: #026BF6; }
 .status-complete { background: #1cb0f6; }
 
 .fac-room-info {
@@ -1210,7 +1210,7 @@ header {
 .express-timer-fill {
     height: 100%;
     width: 100%;
-    background: linear-gradient(90deg, #58cc02, #a8e063);
+    background: linear-gradient(90deg, #026BF6, #1cb0f6);
     transition: width 1s linear;
 }
 
