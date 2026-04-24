@@ -1325,7 +1325,7 @@ header {
     color: #666;
 }
 
-.letter-textarea, .letter-text-mirror {
+.letter-textarea {
     width: 100%;
     min-height: 200px;
     background: transparent;
@@ -1338,10 +1338,13 @@ header {
     color: #2c3e50;
     white-space: pre-wrap;
     word-wrap: break-word;
+    display: block;
 }
 
-.letter-text-mirror.hidden {
-    display: none;
+.letter-textarea:empty:before {
+    content: "Start writing here...";
+    color: #aaa;
+    font-style: italic;
 }
 
 .letter-signature {

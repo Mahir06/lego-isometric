@@ -18,9 +18,6 @@ export class ReflectionManager {
         this.captureOverlay = document.getElementById('capture-overlay');
         this.performCaptureBtn = document.getElementById('perform-capture-btn');
         
-        // Mirror element for export
-        this.mirror = document.getElementById('reflection-text-mirror');
-        
         this.currentPhotoData = null;
         
         this.setupEventListeners();
@@ -43,7 +40,7 @@ export class ReflectionManager {
             month: 'long', day: 'numeric', year: 'numeric' 
         });
         this.signatureName.innerText = this.game.playerName || "Builder";
-        this.input.value = "";
+        this.input.innerText = "";
         this.currentPhotoData = null;
         if (this.photoContainer) this.photoContainer.classList.add('hidden');
         if (this.photoDisplay) this.photoDisplay.src = "";
@@ -100,7 +97,7 @@ export class ReflectionManager {
     }
 
     async saveAndExport() {
-        const text = this.input.value.trim();
+        const text = this.input.innerText.trim();
         if (!text) {
             alert("Please write something before saving!");
             return;
@@ -123,19 +120,15 @@ export class ReflectionManager {
         // Export PNG
         const letter = document.getElementById('reflection-letter');
         
-        // Use mirror div for export to handle multiline text properly in html2canvas
-        if (this.mirror) {
-            this.mirror.innerText = this.input.value;
-            this.mirror.classList.remove('hidden');
-            this.input.classList.add('hidden');
-        }
-        
         try {
+            // Hide placeholder if any (though it should be hidden if text is typed)
+            
             const canvas = await html2canvas(letter, {
-                backgroundColor: '#fdfcf0',
                 scale: 2, 
                 logging: false,
-                useCORS: true
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: null // Keep transparent/css background
             });
             
             const link = document.createElement('a');
@@ -148,11 +141,6 @@ export class ReflectionManager {
             console.error("Export failed:", error);
             alert("Failed to export PNG. But your reflection has been saved in the gallery!");
         } finally {
-            // Restore UI
-            if (this.mirror) {
-                this.mirror.classList.add('hidden');
-                this.input.classList.remove('hidden');
-            }
             this.hideModal();
         }
     }
@@ -213,7 +201,7 @@ export class ReflectionManager {
             month: 'long', day: 'numeric', year: 'numeric' 
         });
         this.signatureName.innerText = refData.playerName;
-        this.input.value = refData.text;
+        this.input.innerText = refData.text;
         
         if (refData.photo) {
             this.photoDisplay.src = refData.photo;
