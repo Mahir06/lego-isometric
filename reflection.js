@@ -117,18 +117,44 @@ export class ReflectionManager {
         reflections.unshift(reflection);
         localStorage.setItem('pp_reflections', JSON.stringify(reflections));
 
-        // Export PNG
-        const letter = document.getElementById('reflection-letter');
+        // Export PNG using Cloning Method for maximum reliability
+        const originalLetter = document.getElementById('reflection-letter');
         
+        // Create a clone to capture off-screen (avoids layout/modal issues)
+        const clone = originalLetter.cloneNode(true);
+        
+        // Copy the text content specifically since cloneNode doesn't always handle it for all elements
+        const originalText = originalLetter.querySelector('#reflection-input');
+        const cloneText = clone.querySelector('#reflection-input');
+        if (originalText && cloneText) {
+            cloneText.innerText = originalText.innerText;
+        }
+
+        // Apply capture-specific styles to the clone
+        Object.assign(clone.style, {
+            position: 'fixed',
+            left: '-9999px',
+            top: '0',
+            width: originalLetter.offsetWidth + 'px',
+            height: originalLetter.offsetHeight + 'px',
+            margin: '0',
+            padding: '40px 40px 40px 80px',
+            transform: 'none',
+            zIndex: '-1'
+        });
+
+        document.body.appendChild(clone);
+
         try {
-            // Hide placeholder if any (though it should be hidden if text is typed)
-            
-            const canvas = await html2canvas(letter, {
+            // Wait a tiny bit for the clone to be ready in the DOM
+            await new Promise(r => setTimeout(r, 100));
+
+            const canvas = await html2canvas(clone, {
                 scale: 2, 
                 logging: false,
                 useCORS: true,
                 allowTaint: true,
-                backgroundColor: null // Keep transparent/css background
+                backgroundColor: '#fdfcf0' // Paper color
             });
             
             const link = document.createElement('a');
@@ -141,6 +167,7 @@ export class ReflectionManager {
             console.error("Export failed:", error);
             alert("Failed to export PNG. But your reflection has been saved in the gallery!");
         } finally {
+            document.body.removeChild(clone);
             this.hideModal();
         }
     }
