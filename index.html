@@ -708,13 +708,28 @@
                         <p>Sincerely,</p>
                         <p id="reflection-signature-name">Builder</p>
                     </div>
+
+                    <div id="reflection-photo-container" class="letter-photo-container hidden">
+                        <img id="reflection-photo-display" src="" alt="Build Photo">
+                    </div>
                 </div>
             </div>
             <div class="reflection-actions">
+                <button id="add-photo-btn" class="secondary-btn">📸 Add Build Photo</button>
                 <button id="save-reflection-btn" class="primary-btn">Save & Export PNG</button>
                 <button id="close-reflection-btn" class="secondary-btn">Maybe Later</button>
             </div>
         </div>
+    </div>
+
+    <!-- CAPTURE OVERLAY -->
+    <div id="capture-overlay" class="hidden" style="position: fixed; inset: 0; pointer-events: none; z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 50px;">
+        <div style="background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 30px; margin-bottom: 25px; font-weight: 800; pointer-events: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.1); font-family: var(--font-main);">
+            Position your camera, then capture! 🧱
+        </div>
+        <button id="perform-capture-btn" class="primary-btn" style="pointer-events: auto; padding: 18px 50px; font-size: 1.3rem; border-radius: 50px; background: #ff4b4b; border-bottom: 6px solid #cc0000; transition: transform 0.1s; transform: scale(1);">
+            📸 CAPTURE PHOTO
+        </button>
     </div>
 
     <script type="module" src="main.js"></script>

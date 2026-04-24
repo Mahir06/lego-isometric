@@ -11,6 +11,15 @@ export class ReflectionManager {
         this.grid = document.getElementById('reflections-grid');
         this.galleryScreen = document.getElementById('landing-reflections-gallery');
         
+        // Photo elements
+        this.photoBtn = document.getElementById('add-photo-btn');
+        this.photoContainer = document.getElementById('reflection-photo-container');
+        this.photoDisplay = document.getElementById('reflection-photo-display');
+        this.captureOverlay = document.getElementById('capture-overlay');
+        this.performCaptureBtn = document.getElementById('perform-capture-btn');
+        
+        this.currentPhotoData = null;
+        
         this.setupEventListeners();
     }
 
@@ -19,6 +28,9 @@ export class ReflectionManager {
         document.getElementById('close-reflection-btn').onclick = () => this.hideModal();
         document.getElementById('view-reflections-btn').onclick = () => this.showGallery();
         document.getElementById('back-to-landing-btn').onclick = () => this.hideGallery();
+        
+        if (this.photoBtn) this.photoBtn.onclick = () => this.startCaptureFlow();
+        if (this.performCaptureBtn) this.performCaptureBtn.onclick = () => this.executeCapture();
     }
 
     showModal(promptText = "Write a few sentences about what you learned in this activity.", onClose = null) {
@@ -29,6 +41,50 @@ export class ReflectionManager {
         });
         this.signatureName.innerText = this.game.playerName || "Builder";
         this.input.value = "";
+        this.currentPhotoData = null;
+        if (this.photoContainer) this.photoContainer.classList.add('hidden');
+        if (this.photoDisplay) this.photoDisplay.src = "";
+        
+        this.modal.classList.remove('hidden');
+    }
+
+    startCaptureFlow() {
+        this.modal.classList.add('hidden');
+        this.captureOverlay.classList.remove('hidden');
+        
+        // Ensure UI container is visible to see the build
+        document.getElementById('ui-container').classList.remove('hidden');
+    }
+
+    executeCapture() {
+        // Hide overlay for capture
+        this.captureOverlay.classList.add('hidden');
+        
+        // Temporarily hide game UI elements that shouldn't be in the photo
+        const grid = this.game.grid;
+        const ghost = this.game.ghostBrick;
+        const wasGridVisible = grid ? grid.visible : false;
+        const wasGhostVisible = ghost ? ghost.visible : false;
+        
+        if (grid) grid.visible = false;
+        if (ghost) ghost.visible = false;
+        
+        // Force a render
+        this.game.renderer.render(this.game.scene, this.game.camera);
+        
+        // Capture data URL
+        const dataUrl = this.game.renderer.domElement.toDataURL('image/png');
+        this.currentPhotoData = dataUrl;
+        
+        // Restore visibility
+        if (grid) grid.visible = wasGridVisible;
+        if (ghost) ghost.visible = wasGhostVisible;
+        
+        // Update reflection modal UI
+        this.photoDisplay.src = dataUrl;
+        this.photoContainer.classList.remove('hidden');
+        
+        // Return to reflection modal
         this.modal.classList.remove('hidden');
     }
 
@@ -52,7 +108,8 @@ export class ReflectionManager {
             date: new Date().toISOString(),
             prompt: this.promptDisplay.innerText,
             text: text,
-            playerName: this.game.playerName || "Builder"
+            playerName: this.game.playerName || "Builder",
+            photo: this.currentPhotoData
         };
 
         // Save to localStorage
@@ -131,6 +188,7 @@ export class ReflectionManager {
                 <div class="reflection-card-date">${dateStr}</div>
                 <div class="reflection-card-prompt">${ref.prompt}</div>
                 <div class="reflection-card-text">${ref.text}</div>
+                ${ref.photo ? `<div class="reflection-card-photo-indicator">📷 Photo Attached</div>` : ''}
             `;
             card.onclick = () => this.previewReflection(ref);
             this.grid.appendChild(card);
@@ -145,6 +203,15 @@ export class ReflectionManager {
         });
         this.signatureName.innerText = refData.playerName;
         this.input.value = refData.text;
+        
+        if (refData.photo) {
+            this.photoDisplay.src = refData.photo;
+            this.photoContainer.classList.remove('hidden');
+            this.currentPhotoData = refData.photo;
+        } else {
+            this.photoContainer.classList.add('hidden');
+            this.currentPhotoData = null;
+        }
         
         // Temporarily change button to just "Re-export"
         const saveBtn = document.getElementById('save-reflection-btn');

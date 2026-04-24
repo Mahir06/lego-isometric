@@ -1373,9 +1373,49 @@ header {
 }
 
 .reflection-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
     border-color: #026BF6;
-    box-shadow: 0 8px 16px rgba(2, 107, 246, 0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+.letter-photo-container {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    width: 180px;
+    padding: 10px 10px 30px 10px;
+    background: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    border: 1px solid #ddd;
+    transform: rotate(3deg);
+    z-index: 5;
+    transition: transform 0.3s ease;
+}
+
+.letter-photo-container:hover {
+    transform: rotate(0deg) scale(1.05);
+}
+
+.letter-photo-container img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    border: 1px solid #eee;
+}
+
+.letter-photo-container.hidden {
+    display: none;
+}
+
+.reflection-card-photo-indicator {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #026BF6;
+    margin-top: 10px;
+}
+
+#perform-capture-btn:active {
+    transform: scale(0.95);
 }
 
 .reflection-card-date {
