@@ -1267,15 +1267,15 @@ header {
     max-width: 600px;
     min-height: 400px;
     background: #fdfcf0; /* Paper color */
-    padding: 40px;
+    padding: 40px 40px 40px 80px; /* More padding on the left for the margin */
     box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.1);
     position: relative;
     border: 1px solid #e8e4c9;
     border-radius: 2px;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Fira Sans', sans-serif;
     color: #443e30;
     background-image: 
-        linear-gradient(90deg, transparent 39px, #abced4 39px, #abced4 41px, transparent 41px),
+        linear-gradient(90deg, transparent 59px, #abced4 59px, #abced4 61px, transparent 61px),
         linear-gradient(#eee .1em, transparent .1em);
     background-size: 100% 1.5em;
     line-height: 1.5em;
@@ -1301,10 +1301,12 @@ header {
     color: #888;
 }
 
-.letter-stamp {
-    font-size: 40px;
-    transform: rotate(15deg);
-    opacity: 0.8;
+.letter-character {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    width: 80px;
+    height: auto;
 }
 
 .letter-title {
@@ -1331,7 +1333,7 @@ header {
     outline: none;
     resize: none;
     font-size: 1.1rem;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Fira Sans', sans-serif;
     line-height: 1.5em;
     color: #2c3e50;
 }
