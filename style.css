@@ -1325,7 +1325,7 @@ header {
     color: #666;
 }
 
-.letter-textarea {
+.letter-textarea, .letter-text-mirror {
     width: 100%;
     min-height: 200px;
     background: transparent;
@@ -1336,6 +1336,12 @@ header {
     font-family: 'Fira Sans', sans-serif;
     line-height: 1.5em;
     color: #2c3e50;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.letter-text-mirror.hidden {
+    display: none;
 }
 
 .letter-signature {

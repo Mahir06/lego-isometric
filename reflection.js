@@ -18,6 +18,9 @@ export class ReflectionManager {
         this.captureOverlay = document.getElementById('capture-overlay');
         this.performCaptureBtn = document.getElementById('perform-capture-btn');
         
+        // Mirror element for export
+        this.mirror = document.getElementById('reflection-text-mirror');
+        
         this.currentPhotoData = null;
         
         this.setupEventListeners();
@@ -119,15 +122,18 @@ export class ReflectionManager {
 
         // Export PNG
         const letter = document.getElementById('reflection-letter');
-        const saveBtn = document.getElementById('save-reflection-btn');
-        const closeBtn = document.getElementById('close-reflection-btn');
         
-        // Hide buttons during capture if they were inside, but they are outside in our HTML
+        // Use mirror div for export to handle multiline text properly in html2canvas
+        if (this.mirror) {
+            this.mirror.innerText = this.input.value;
+            this.mirror.classList.remove('hidden');
+            this.input.classList.add('hidden');
+        }
         
         try {
             const canvas = await html2canvas(letter, {
                 backgroundColor: '#fdfcf0',
-                scale: 2, // Higher quality
+                scale: 2, 
                 logging: false,
                 useCORS: true
             });
@@ -138,10 +144,15 @@ export class ReflectionManager {
             link.click();
             
             alert("Reflection saved and downloaded!");
-            this.hideModal();
         } catch (error) {
             console.error("Export failed:", error);
             alert("Failed to export PNG. But your reflection has been saved in the gallery!");
+        } finally {
+            // Restore UI
+            if (this.mirror) {
+                this.mirror.classList.add('hidden');
+                this.input.classList.remove('hidden');
+            }
             this.hideModal();
         }
     }
