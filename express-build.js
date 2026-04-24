@@ -633,6 +633,11 @@ export class ExpressBuildMode {
             const btn = document.getElementById(id);
             if (btn) btn.classList.remove('hidden');
         });
+
+        // Show Reflection Modal
+        if (!this.game.isFacilitator) {
+            this.game.reflectionManager.showModal("What did you learn from this Express Build session?");
+        }
     }
 
     lockBuildingControls() {

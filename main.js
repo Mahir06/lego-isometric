@@ -8,6 +8,7 @@ import { ref, onValue, set, push, remove, onChildAdded, onChildRemoved, get, onD
 import { ExpressBuildMode } from './express-build.js';
 import { ImposterBuilderMode } from './imposter-builder.js';
 import { ReductionChallengeMode } from './reduction-challenge.js';
+import { ReflectionManager } from './reflection.js';
 
 class ProductivePlayGame {
     constructor() {
@@ -72,6 +73,7 @@ class ProductivePlayGame {
         this.expressBuild = new ExpressBuildMode(this);
         this.imposterBuilder = new ImposterBuilderMode(this);
         this.reductionChallengeMode = new ReductionChallengeMode(this);
+        this.reflectionManager = new ReflectionManager(this);
         this.isReady = false;
         this.currentRole = null;
         this.gameState = 'WAITING';
@@ -671,11 +673,12 @@ class ProductivePlayGame {
         const reductionLobby = document.getElementById('landing-reduction-lobby');
         const reductionRoom  = document.getElementById('landing-reduction-room');
         const reductionFac   = document.getElementById('landing-reduction-facilitator-dashboard');
+        const reflectionGallery = document.getElementById('landing-reflections-gallery');
         
         const backBtn     = document.getElementById('global-back-btn');
 
         // Hide all
-        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac, imposterLobby, imposterRoom, imposterFac, reductionLobby, reductionRoom, reductionFac].forEach(el => el && el.classList.add('hidden'));
+        [step1, step2, lobbyEl, roomEl, facEl, expressLobby, expressRoom, expressFac, imposterLobby, imposterRoom, imposterFac, reductionLobby, reductionRoom, reductionFac, reflectionGallery].forEach(el => el && el.classList.add('hidden'));
 
         // Show requested
         const map = { 
@@ -692,8 +695,8 @@ class ProductivePlayGame {
             'imposter-facilitator-dashboard': imposterFac,
             'reduction-lobby': reductionLobby,
             'reduction-room': reductionRoom,
-            'reduction-fac-dashboard': reductionFac
-
+            'reduction-fac-dashboard': reductionFac,
+            'reflections-gallery': reflectionGallery
         };
         if (map[name]) map[name].classList.remove('hidden');
 
@@ -749,6 +752,9 @@ class ProductivePlayGame {
                 case 'express-facilitator-dashboard':
                     this.showScreen('step1');
                     break;
+                case 'reflections-gallery':
+                    this.showScreen('step1');
+                    break;
                 default:                this.showScreen('step1'); break;
             }
         };
@@ -756,13 +762,21 @@ class ProductivePlayGame {
         // ── Exit World button (in-game toolbar) ──────────────────────────────
         if (exitWorldBtn) {
             exitWorldBtn.onclick = () => {
-                if (confirm('Exit this world and return to the main screen?')) {
+                const doExit = () => {
                     // Explicitly remove from overcooked room if in one
                     if (this.overcookedRoomId && db) {
                         remove(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${this.overcookedRoomId}/players/${this.playerId}`));
                     }
                     // Reload for a clean state
                     window.location.reload();
+                };
+
+                if (confirm('Exit this world and return to the main screen?')) {
+                    if (!this.isFacilitator && this.gameMode !== 'spectator') {
+                        this.reflectionManager.showModal("What did you learn in this session?", doExit);
+                    } else {
+                        doExit();
+                    }
                 }
             };
         }
@@ -2095,6 +2109,18 @@ class ProductivePlayGame {
             }
         };
 
+        document.getElementById('fac-end-game').onclick = async () => {
+            if (!confirm('End the game for all rooms and trigger reflections?')) return;
+            const snapshot = await get(ref(db, `rooms/${this.worldCode}/overcooked_rooms`));
+            const rooms = snapshot.val();
+            if (rooms) {
+                Object.values(rooms).forEach(room => {
+                    set(ref(db, `rooms/${this.worldCode}/overcooked_rooms/${room.id}/status`), 'REFLECTING');
+                });
+                alert('Reflections triggered for all active rooms!');
+            }
+        };
+
         document.getElementById('fac-exit').onclick = () => {
             if (confirm('Exit Mission Control and return to the main screen?')) {
                 window.location.reload();
@@ -2324,6 +2350,8 @@ class ProductivePlayGame {
                         const partnerId = snap.val();
                         if (partnerId) this.proceedToRound2(partnerId);
                     });
+                } else if (status === 'REFLECTING') {
+                    this.reflectionManager.showModal("What did you learn about collaboration and role-based building in this Overcooked session?");
                 }
             });
         }
@@ -2663,8 +2691,15 @@ class ProductivePlayGame {
 
     endGame() {
         this.gameState = 'GAME_COMPLETE';
-        this.showModal('Game Complete!', 'Great work! Check your recreated structure against the original.', '🏆');
         if (this.timerInterval) clearInterval(this.timerInterval);
+        
+        // Show brief completion message then reflection
+        this.showModal('Game Complete!', 'Great work! Check your recreated structure against the original. A reflection prompt will appear shortly.', '🏆');
+        
+        setTimeout(() => {
+            this.modalEl.classList.add('hidden');
+            this.reflectionManager.showModal("What did you learn about collaboration and role-based building in this Overcooked session?");
+        }, 3000);
     }
 
     canPerform(roleRequired) {

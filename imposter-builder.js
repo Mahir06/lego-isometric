@@ -953,6 +953,7 @@ export class ImposterBuilderMode {
             this.game.showScreen('imposter-facilitator-dashboard');
         } else {
             this.game.showScreen('imposter-lobby');
+            this.game.reflectionManager.showModal("What did you learn from this Imposter Builder session?");
         }
 
         this.unlockBuildingControls();

@@ -688,6 +688,11 @@ if (this.game.floor) this.game.floor.visible = true;
         if (this.game.toggleReferenceView) this.game.toggleReferenceView(false);
         
         this.game.showScreen('reduction-lobby');
+        
+        if (!this.game.isFacilitator) {
+            this.game.reflectionManager.showModal("What did you learn about the essence of your build through this reduction challenge?");
+        }
+
         this.unlockBuildingControls();
     }
 

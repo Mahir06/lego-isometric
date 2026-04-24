@@ -1246,8 +1246,177 @@ header {
     font-size: 1rem;
 }
 
+
 .spectate-hint {
     font-size: 0.78rem;
     color: #aaa;
     font-weight: 600;
+}
+
+/* --- REFLECTIONS FEATURE --- */
+.reflection-letter-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.reflection-letter {
+    width: 90vw;
+    max-width: 600px;
+    min-height: 400px;
+    background: #fdfcf0; /* Paper color */
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    border: 1px solid #e8e4c9;
+    border-radius: 2px;
+    font-family: 'Nunito', sans-serif;
+    color: #443e30;
+    background-image: 
+        linear-gradient(90deg, transparent 39px, #abced4 39px, #abced4 41px, transparent 41px),
+        linear-gradient(#eee .1em, transparent .1em);
+    background-size: 100% 1.5em;
+    line-height: 1.5em;
+}
+
+.reflection-letter::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: url('https://www.transparenttextures.com/patterns/parchment.png');
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.letter-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.letter-date {
+    font-weight: 700;
+    color: #888;
+}
+
+.letter-stamp {
+    font-size: 40px;
+    transform: rotate(15deg);
+    opacity: 0.8;
+}
+
+.letter-title {
+    font-family: 'Fira Sans', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    color: #026BF6;
+}
+
+.letter-prompt {
+    font-weight: 700;
+    margin-bottom: 20px;
+    font-style: italic;
+    color: #666;
+}
+
+.letter-textarea {
+    width: 100%;
+    min-height: 200px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 1.1rem;
+    font-family: 'Nunito', sans-serif;
+    line-height: 1.5em;
+    color: #2c3e50;
+}
+
+.letter-signature {
+    margin-top: 40px;
+    text-align: right;
+    font-style: italic;
+}
+
+.reflection-actions {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.reflection-actions button {
+    flex: 1;
+}
+
+/* Gallery Styles */
+.reflections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+
+.reflection-card {
+    background: white;
+    border-radius: 16px;
+    border: 2px solid #e5e5e5;
+    padding: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.reflection-card:hover {
+    transform: translateY(-5px);
+    border-color: #026BF6;
+    box-shadow: 0 8px 16px rgba(2, 107, 246, 0.1);
+}
+
+.reflection-card-date {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 5px;
+}
+
+.reflection-card-prompt {
+    font-weight: 800;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: #333;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.reflection-card-text {
+    font-size: 0.85rem;
+    color: #666;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tertiary-btn {
+    background: transparent;
+    border: 2px solid #e5e5e5;
+    color: #777;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tertiary-btn:hover {
+    background: #f7f7f7;
+    border-color: #ccc;
+    color: #333;
 }

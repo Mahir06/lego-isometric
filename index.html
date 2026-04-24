@@ -34,6 +34,7 @@
             <div class="modal-footer">
                 <button id="join-room-btn" class="primary-btn">JOIN WORLD</button>
                 <button id="create-room-btn" class="secondary-btn">✦ Create New World</button>
+                <button id="view-reflections-btn" class="tertiary-btn" style="margin-top: 15px; width: 100%; font-size: 0.9rem; opacity: 0.8;">📜 View Past Reflections</button>
             </div>
         </div>
 
@@ -389,6 +390,7 @@
                         <button id="fac-force-r1" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px;">Start Round 1</button>
                         <button id="fac-start-r2" class="primary-btn" style="width:100%; margin-bottom: 12px; font-size: 0.85rem; padding: 12px; background:#1cb0f6; border-bottom:4px solid #1480b3;">Start Round 2</button>
                         <button id="fac-force-r2" class="primary-btn" style="width:100%; background:#ff4b4b; border-bottom:4px solid #cc0000; font-size: 0.85rem; padding: 12px;">Force Round 2 Swap</button>
+                        <button id="fac-end-game" class="primary-btn" style="width:100%; background:#a855f7; border-bottom:4px solid #7c2de0; font-size: 0.85rem; padding: 12px; margin-top: 12px;">🏁 End Game (Reflect)</button>
                     </section>
                 </aside>
 
@@ -406,6 +408,22 @@
 
             <div class="modal-footer" style="padding: 15px 36px;">
                 <button id="fac-exit" class="secondary-btn">Disconnect from World</button>
+            </div>
+        </div>
+
+        <!-- REFLECTIONS GALLERY SCREEN -->
+        <div class="landing-content hidden" id="landing-reflections-gallery">
+            <div class="modal-header">
+                <h1>My Reflections</h1>
+                <p>A history of what you've learned.</p>
+            </div>
+            <div class="modal-body">
+                <div id="reflections-grid" class="reflections-grid">
+                    <!-- JS populates reflection cards -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="back-to-landing-btn" class="secondary-btn">Back to Home</button>
             </div>
         </div>
     </div>
@@ -672,6 +690,33 @@
         </div>
     </div>
     </div>
+
+    <!-- MODAL: Reflection / Letter -->
+    <div id="reflection-modal" class="modal-overlay hidden" style="z-index: 4000;">
+        <div class="reflection-letter-container">
+            <div id="reflection-letter" class="reflection-letter">
+                <div class="letter-header">
+                    <div class="letter-date" id="reflection-date">April 24, 2026</div>
+                    <div class="letter-stamp">🧱</div>
+                </div>
+                <div class="letter-content">
+                    <h2 class="letter-title">My Learning Reflection</h2>
+                    <p class="letter-prompt" id="reflection-prompt-display">Write a few sentences about what you learned in this activity.</p>
+                    <textarea id="reflection-input" class="letter-textarea" placeholder="Dear self, today I learned..."></textarea>
+                    
+                    <div class="letter-signature">
+                        <p>Sincerely,</p>
+                        <p id="reflection-signature-name">Builder</p>
+                    </div>
+                </div>
+            </div>
+            <div class="reflection-actions">
+                <button id="save-reflection-btn" class="primary-btn">Save & Export PNG</button>
+                <button id="close-reflection-btn" class="secondary-btn">Maybe Later</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>
