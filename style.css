@@ -31,7 +31,7 @@ body {
 #landing-screen {
     position: fixed;
     inset: 0;
-    background: rgba(240, 250, 255, 0.97);
+    background: url('b1deba4d-75df-4998-bc49-1485f2bc3d1d.png') no-repeat center center / cover;
     z-index: 2000;
     display: flex;
     align-items: center;
